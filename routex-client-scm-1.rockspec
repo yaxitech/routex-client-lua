@@ -18,7 +18,7 @@ else
 end
 
 description = {
-  summary = "A client for YAXI's Open Banking services",
+  summary = "Pure Lua client for YAXI's Open Banking services",
   detailed = "Pure Lua client with no external dependencies. Bring your own HTTP client by implementing IHttpClient, or install the 'http' rock to use the bundled DefaultHttpClient.",
   homepage = "https://yaxi.tech",
   license = "MIT"
