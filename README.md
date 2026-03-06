@@ -1,6 +1,6 @@
 # routex-client-lua
 
-Pure Lua client for [YAXI's](https://yaxi.tech) Open Banking services. Requires Lua >= 5.3 and an API key, which you can get for free at [hub.yaxi.tech](https://hub.yaxi.tech).
+Pure Lua client for [YAXI's](https://yaxi.tech) Open Banking services. Requires Lua >= 5.3, a Unix-like OS (Linux, macOS), and an API key, which you can get for free at [hub.yaxi.tech](https://hub.yaxi.tech).
 
 ## Installation
 
@@ -19,11 +19,11 @@ luarocks install http
 ```
 
 ```lua
-local routex = require("routex-client")
-local http = require("routex-client.http")
+local RoutexClient = require("routex-client").RoutexClient
+local DefaultHttpClient = require("routex-client.http").DefaultHttpClient
 
-local httpClient = http.DefaultHttpClient:new()
-local client = routex.RoutexClient:new(httpClient, "https://api.yaxi.tech")
+local httpClient = DefaultHttpClient:new()
+local client = RoutexClient:new("https://api.yaxi.tech", httpClient)
 ```
 
 ## License

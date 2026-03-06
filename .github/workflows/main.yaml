@@ -20,17 +20,19 @@ jobs:
       - name: Install rock from local source
         run: luarocks --lua-version 5.4 make --local
 
-      - name: Smoke test
-        run: |
-          eval $(luarocks --lua-version 5.4 path)
-          lua5.4 -e 'require("routex-client"); print("ok")'
-
       - name: Run busted tests
         env:
           ROUTEX_URL: ${{ secrets.ROUTEX_URL }}
           KEY_ID: test
           KEY: ${{ secrets.ROUTEX_KEY }}
         run: luarocks --lua-version 5.4 test --local
+
+      - name: Smoke test
+        env:
+          ROUTEX_URL: ${{ secrets.ROUTEX_URL }}
+        run: |
+          eval "$(luarocks --lua-version 5.4 path)"
+          lua5.4 .github/scripts/smoke_test.lua
 
   publish:
     needs: test
@@ -45,13 +47,14 @@ jobs:
 
       - name: Upload scm rockspec
         if: github.event_name == 'push'
-        run: luarocks upload routex-client-scm-1.rockspec --force --api-key=${{ secrets.LUAROCKS_API_KEY }}
+        run: luarocks upload --skip-pack --force --api-key=${{ secrets.LUAROCKS_API_KEY }} routex-client-scm-1.rockspec
 
-      - name: Build and upload versioned rockspec
+      - name: Build and upload versioned rock
         if: github.event_name == 'release'
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           ROCKSPEC="routex-client-${VERSION}-1.rockspec"
           sed 's/local package_version = "scm"/local package_version = "'"${VERSION}"'"/' \
             routex-client-scm-1.rockspec > "$ROCKSPEC"
-          luarocks upload "$ROCKSPEC" --api-key=${{ secrets.LUAROCKS_API_KEY }}
+          luarocks pack "$ROCKSPEC"
+          luarocks upload --api-key=${{ secrets.LUAROCKS_API_KEY }} "$ROCKSPEC" "routex-client-${VERSION}-1.src.rock"
