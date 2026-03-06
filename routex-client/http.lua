@@ -1,17 +1,21 @@
 -- SPDX-License-Identifier: MIT
 -- Author: Vincent Haupert <vincent.haupert@yaxi.tech>
 
-local util = require("routex-client.util")
 local json = require("routex-client.vendor.json")
+local util = require("routex-client.util")
 
+---@private
+---@param method string?
+---@param url string?
+---@param body string?
+---@param headers table<string, string>
+---@return string
 local function format(method, url, body, headers)
   local lines = {
     string.format("%s %s\n", method or "<method>", url or "<url>"),
   }
   for key, value in pairs(headers) do
-    if key or value then
-      table.insert(lines, string.format("%s: %s", key, value))
-    end
+    table.insert(lines, string.format("%s: %s", key, value))
   end
   table.insert(lines, string.format("\n%s", body or "<no body>"))
   return table.concat(lines, "\n")
@@ -19,12 +23,12 @@ end
 
 --- REQUEST IMPL ---
 
----@class YAXI.Http.Request
+---@class YAXI.Http.Request: YAXI.ClassBase
 ---@field method "GET"|"POST"|"PUT"|"DELETE" HTTP method
 ---@field url string URL
 ---@field data string? Body
 ---@field headers table<string, string> Headers
----@field follow_redirects boolean Whether the HTTP client should follow_redirects
+---@field followRedirects boolean Whether the HTTP client should follow redirects
 local Request = util.class()
 
 ---Create a new instance
@@ -32,9 +36,9 @@ local Request = util.class()
 ---@param url string URL
 ---@param data string? Body
 ---@param headers table<string, string> Headers
----@param follow_redirects boolean Whether the HTTP client should follow_redirects
+---@param followRedirects boolean Whether the HTTP client should follow redirects
 ---@return YAXI.Http.Request
-function Request:new(method, url, data, headers, follow_redirects)
+function Request:new(method, url, data, headers, followRedirects)
   local obj = setmetatable({}, self)
   obj.method = method
   obj.url = url
@@ -43,10 +47,10 @@ function Request:new(method, url, data, headers, follow_redirects)
   for name, value in pairs(headers) do
     obj.headers[name] = value
   end
-  if follow_redirects ~= nil then
-    obj.follow_redirects = follow_redirects
+  if followRedirects ~= nil then
+    obj.followRedirects = followRedirects
   else
-    obj.follow_redirects = true
+    obj.followRedirects = true
   end
   return obj
 end
@@ -55,22 +59,22 @@ function Request:toString()
   return format(self.method, self.url, self.data, self.headers)
 end
 
----@class YAXI.Http.RequestBuilder to construct a [`Request`](lua://YAXI.Http.Request)
+---@class YAXI.Http.RequestBuilder: YAXI.ClassBase to construct a [`Request`](lua://YAXI.Http.Request)
 ---@field private _method "GET"|"POST"|"PUT"|"DELETE" HTTP method
----@field private _base_url string Base URL
+---@field private _baseUrl string Base URL
 ---@field private _url string Final URL with path
 ---@field private _data string? Body
 ---@field private _headers table<string, string> Headers
----@field private _follow_redirects boolean Whether the HTTP client should follow_redirects
+---@field private _followRedirects boolean Whether the HTTP client should follow redirects
 local RequestBuilder = util.class()
 
 ---Create a new [`RequestBuilder`](lua://YAXI.Http.RequestBuilder).
----@param base_url string Base URL
+---@param baseUrl string Base URL
 ---@return YAXI.Http.RequestBuilder
-function RequestBuilder:new(base_url)
+function RequestBuilder:new(baseUrl)
   local obj = setmetatable({}, self)
-  obj._base_url = base_url
-  obj._url = base_url
+  obj._baseUrl = baseUrl
+  obj._url = baseUrl
   obj._headers = {}
   return obj
 end
@@ -78,19 +82,18 @@ end
 --#region RequestBuilder
 
 ---Create a new [RequestBuilder](lua://YAXI.Http.RequestBuilder)
----If `base_url` is not given, uses this instance for the builder
----@param base_url string? Base URL
+---If `baseUrl` is not given, uses this instance for the builder
+---@param baseUrl string? Base URL
 ---@return YAXI.Http.RequestBuilder
-function Request:builder(base_url)
-  if base_url == nil then
-    return RequestBuilder
-      :new(self.url)
+function Request:builder(baseUrl)
+  if baseUrl == nil then
+    return RequestBuilder:new(self.url)
       :method(self.method)
       :headers(self.headers)
       :data(self.data)
-      :follow_redirects(self.follow_redirects)
+      :followRedirects(self.followRedirects)
   else
-    return RequestBuilder:new(base_url)
+    return RequestBuilder:new(baseUrl)
   end
 end
 
@@ -99,7 +102,7 @@ end
 ---@return YAXI.Http.RequestBuilder
 function RequestBuilder:method(method)
   self._method = method
-  return self;
+  return self
 end
 
 ---Set a header. If `value` is nil, removes the entry
@@ -133,29 +136,30 @@ end
 
 ---Use the given table as a JSON body
 ---@param tab table Table to JSON serialize
----@param null_value string? Replace the given value with `null` in the JSON output
+---@param nullValue string? Lua pattern passed to `gsub` to replace matching values with `null`; may require escaping
 ---@return YAXI.Http.RequestBuilder
-function RequestBuilder:json(tab, null_value)
+function RequestBuilder:json(tab, nullValue)
   local data = json.encode(tab)
-  if null_value ~= nil then
-    null_value = string.format('"%s"', null_value)
-    data = data:gsub(null_value, "null")
+  if nullValue ~= nil then
+    local pattern = string.format('"%s"', nullValue)
+    data = data:gsub(pattern, "null")
   end
   self:data(data)
   self:header("content-type", "application/json")
   return self
 end
 
----Whether the HTTP client should follow_redirects
+---Whether the HTTP client should follow redirects
+---@param value boolean
 ---@return YAXI.Http.RequestBuilder
-function RequestBuilder:follow_redirects(value)
-  self._follow_redirects = value
+function RequestBuilder:followRedirects(value)
+  self._followRedirects = value
   return self
 end
 
 ---@return YAXI.Http.Request
 function RequestBuilder:build()
-  return Request:new(self._method, self._url, self._data, self._headers, self._follow_redirects)
+  return Request:new(self._method, self._url, self._data, self._headers, self._followRedirects)
 end
 
 function RequestBuilder:toString()
@@ -166,7 +170,7 @@ end
 
 --#region Response
 
----@class YAXI.Http.Response
+---@class YAXI.Http.Response: YAXI.ClassBase
 ---@field status integer
 ---@field headers table<string, string?>
 ---@field body string? Body
@@ -190,7 +194,7 @@ function Response:new(status, headers, body)
 end
 
 function Response:toString()
-  return format(nil, nil, self.body, self.headers)
+  return format(nil, nil, self.body, self.headers) ---@diagnostic disable-line: param-type-mismatch
 end
 
 --#endregion
@@ -198,7 +202,6 @@ end
 ---@class YAXI.Http.IClient Interface class for an HTTP client
 local IHttpClient = {}
 IHttpClient.__index = IHttpClient
-
 
 ---Perform an HTTP request
 ---@param request YAXI.Http.Request HTTP request to perform
@@ -208,8 +211,11 @@ function IHttpClient.request(self, request)
   error("Not implemented")
 end
 
+---@class YAXI.Http.DefaultHttpClient: YAXI.Http.IClient, YAXI.ClassBase
+---@field private httpRequest table
 local DefaultHttpClient = util.class(IHttpClient)
 
+---@return YAXI.Http.DefaultHttpClient
 function DefaultHttpClient:new()
   local obj = setmetatable({}, self)
   -- Make sure this is in LUA_PATH
@@ -237,7 +243,7 @@ function DefaultHttpClient:request(request)
     httpReq:set_body(request.data)
   end
 
-  httpReq.follow_redirects = request.follow_redirects
+  httpReq.follow_redirects = request.followRedirects
 
   local headers, stream = httpReq:go(10)
   if headers == nil then
@@ -245,18 +251,16 @@ function DefaultHttpClient:request(request)
   end
 
   local body, err = stream:get_body_as_string()
-  if not body and err then
+  if not body and err then ---@diagnostic disable-line: unnecessary-if
     error(string.format("Failed reading response body: %s", err))
   end
 
-  local status = tonumber(headers:get(":status"))
-    or error("Failed to get HTTP response status")
+  local status = tonumber(headers:get(":status")) or error("Failed to get HTTP response status")
 
-  local response = Response:new(status, headers, body)
+  local response = Response:new(status --[[@as integer]], headers, body)
 
   return response, request
 end
-
 
 return {
   Request = Request,

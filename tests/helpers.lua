@@ -53,9 +53,12 @@ local function getConfig()
     keyId = os.getenv("KEY_ID") or error("Expected key ID in $KEY_ID environment variable"),
     key = os.getenv("KEY") or error("Expected Base64-encoded key in $KEY environment variable"),
     url = (os.getenv("ROUTEX_URL") or error("Expected URL in $ROUTEX_URL environment variable")):gsub("([/]*)$", ""),
-    testSigningKeys = os.getenv("TEST_SIGNING_KEYS") and {
-      ["dYa685dhHap8RSUtB4DDy1l4UcycsGhklBnV5a/4HSg="] = base64.decode("qzLgDnRegbiQzY416i9/MClrmMp24jcHzaWCWSWSutA=")
-    },
+    testSigningKeys = os.getenv("TEST_SIGNING_KEYS")
+      and {
+        ["dYa685dhHap8RSUtB4DDy1l4UcycsGhklBnV5a/4HSg="] = base64.decode(
+          "qzLgDnRegbiQzY416i9/MClrmMp24jcHzaWCWSWSutA="
+        ),
+      },
   }
 end
 

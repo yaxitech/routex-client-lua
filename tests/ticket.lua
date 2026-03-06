@@ -28,8 +28,7 @@ function Generator:new(apiKeyId, apiKeySecret)
   local obj = setmetatable({}, self)
 
   obj._apiKeyId = apiKeyId
-  obj._apiKeySecret = base64.decode(apiKeySecret)
-    or error("Failed to Base64-decode the API key secret")
+  obj._apiKeySecret = base64.decode(apiKeySecret) or error("Failed to Base64-decode the API key secret")
 
   return obj
 end
@@ -46,7 +45,7 @@ function Generator:issue(ticketId, service, data, exp)
   end
 
   local headers = {
-    kid = self._apiKeyId
+    kid = self._apiKeyId,
   }
 
   local nullValue = "__NULL__"
@@ -55,17 +54,11 @@ function Generator:issue(ticketId, service, data, exp)
     data = {
       id = ticketId,
       service = service,
-      data = data or nullValue
-    }
+      data = data or nullValue,
+    },
   }
 
-  local ticket = jwt.encode(
-    payload,
-    self._apiKeySecret,
-    "HS256",
-    headers,
-    nullValue
-  )
+  local ticket = jwt.encode(payload, self._apiKeySecret, "HS256", headers, nullValue)
 
   return ticket
 end
@@ -173,27 +166,19 @@ end
 ---@param exp integer? Expiration date as a POSIX timestamp; defaults to now + 5min
 ---@return string @YAXI ticket JWT
 local function issue(apiKeyId, apiKeySecret, ticketId, service, data, exp)
-  return Generator
-    :new(apiKeyId, apiKeySecret)
-    :issue(ticketId, service, data, exp)
+  return Generator:new(apiKeyId, apiKeySecret):issue(ticketId, service, data, exp)
 end
 
 ---Get the ID property of a ticket.
 ---**WARNING:** This function does not verify the ticket.
 ---@param ticket string A YAXI service ticket
 local function getId(ticket)
-  local claims = jwt.decode(
-    ticket,
-    nil,
-    nil,
-    {
-      verifySignature = false,
-      verifyExp = false
-    }
-  )
+  local claims = jwt.decode(ticket, nil, nil, {
+    verifySignature = false,
+    verifyExp = false,
+  })
 
-  local ticketId = claims and claims.data and claims.data.id
-    or error("The ticket doesn't have a `data.id` claim")
+  local ticketId = claims and claims.data and claims.data.id or error("The ticket doesn't have a `data.id` claim")
 
   return ticketId
 end

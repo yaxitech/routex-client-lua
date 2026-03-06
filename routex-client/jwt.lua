@@ -2,8 +2,8 @@
 -- Author: Vincent Haupert <vincent.haupert@yaxi.tech>
 
 local base64 = require("routex-client.util.base64")
-local json = require("routex-client.vendor.json")
 local hmac = require("routex-client.vendor.tls13.crypto.hmac")
+local json = require("routex-client.vendor.json")
 local sha2 = require("routex-client.vendor.tls13.crypto.hash.sha2")
 local hmacSha256 = hmac.hmac(sha2.sha256)
 local util = require("routex-client.util")
@@ -17,8 +17,7 @@ local util = require("routex-client.util")
 ---@param options { verifySignature: boolean, verifyExp: boolean }? Additional options
 ---@return table<string, any> @JWT claims
 local function decode(jwt, key, algorithm, options)
-  ---@diagnostic disable-next-line unneccesary-if
-  if algorithm and algorithm ~= "HS256" then
+  if algorithm and algorithm ~= "HS256" then ---@diagnostic disable-line: unnecessary-if
     error("Currently only supports HS256")
   end
 
@@ -26,9 +25,8 @@ local function decode(jwt, key, algorithm, options)
   assert(#parts == 3, "Expected the JWT to consist of three dot-separated parts")
 
   -- Verify the header data
-  local header_json = base64.decode(parts[1])
-    or error("Could not Base64-decode the JWT header")
-  local headers = json.decode(header_json)
+  local headerJson = base64.decode(parts[1]) or error("Could not Base64-decode the JWT header")
+  local headers = json.decode(headerJson)
 
   if headers.typ ~= "JWT" then
     error(string.format("Expected a token with a header `typ` of `JWT`, got: %s", headers.typ))
@@ -42,21 +40,19 @@ local function decode(jwt, key, algorithm, options)
     verifySignature = false
   end
   if verifySignature and not key then
-    error("Requested JWT signature verifcation but not key given")
+    error("Requested JWT signature verification but no key given")
   end
 
   if verifySignature then
     local msg = string.format("%s.%s", parts[1], parts[2])
-    local expected_signature = hmacSha256(msg, key)
-    local actual_signature = base64.decode(parts[3])
-      or error("Could not Base64-decode the JWT signature")
-    if actual_signature ~= expected_signature then
-      error(string.format("Failed to verify JWT signature: %s", actual_signature))
+    local expectedSignature = hmacSha256(msg, key)
+    local actualSignature = base64.decode(parts[3]) or error("Could not Base64-decode the JWT signature")
+    if actualSignature ~= expectedSignature then
+      error("Failed to verify JWT signature")
     end
   end
 
-  local payload = base64.decode(parts[2])
-    or error("Could not Base64-decode the JWT payload")
+  local payload = base64.decode(parts[2]) or error("Could not Base64-decode the JWT payload")
   local claims = json.decode(payload)
 
   local verifyExp = true
@@ -78,36 +74,36 @@ end
 ---@param key binary Secret key to sign with `algorithm`
 ---@param algorithm "HS256" Signing algorithm; only HS256 is currently supported
 ---@param headers table? Extra headers apart from `alg` and `typ`
----@param null_val string? Value to replace with `null`
-local function encode(payload, key, algorithm, headers, null_val)
-  ---@diagnostic disable-next-line unneccesary-if
-  if algorithm and algorithm ~= "HS256" then
+---@param nullVal string? Lua pattern passed to `gsub` to replace matching values with `null`; may require escaping
+---@return string
+local function encode(payload, key, algorithm, headers, nullVal)
+  if algorithm and algorithm ~= "HS256" then ---@diagnostic disable-line: unnecessary-if
     error("Currently only supports HS256")
   end
 
-  local all_headers = {
+  local allHeaders = {
     alg = algorithm,
     typ = "JWT",
   }
   for k, v in pairs(headers or {}) do
-    all_headers[k] = v
+    allHeaders[k] = v
   end
 
-  local jwt_header = json.encode(all_headers)
-  local jwt_header_b64 = base64.encodeUrlsafe(jwt_header)
+  local jwtHeader = json.encode(allHeaders)
+  local jwtHeaderB64 = base64.encodeUrlsafe(jwtHeader)
 
-  local jwt_payload = json.encode(payload)
-  if null_val then
-    null_val = string.format('"%s"', null_val)
-    jwt_payload = jwt_payload:gsub(null_val, "null")
+  local jwtPayload = json.encode(payload)
+  if nullVal then
+    local pattern = string.format('"%s"', nullVal)
+    jwtPayload = jwtPayload:gsub(pattern, "null")
   end
-  local jwt_payload_b64 = base64.encodeUrlsafe(jwt_payload)
+  local jwtPayloadB64 = base64.encodeUrlsafe(jwtPayload)
 
-  local msg = string.format("%s.%s", jwt_header_b64, jwt_payload_b64)
+  local msg = string.format("%s.%s", jwtHeaderB64, jwtPayloadB64)
   local signature = hmacSha256(msg, key)
-  local signature_b64 = base64.encodeUrlsafe(signature)
+  local signatureB64 = base64.encodeUrlsafe(signature)
 
-  local jwt = string.format("%s.%s", msg, signature_b64)
+  local jwt = string.format("%s.%s", msg, signatureB64)
 
   return jwt
 end

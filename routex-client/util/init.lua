@@ -23,7 +23,7 @@ local function class(base)
   cls._super = base
 
   ---Default constructor
-  function cls:new()
+  function cls:new() ---@diagnostic disable-line: unused
     local obj = setmetatable({}, cls)
     return obj
   end
@@ -34,7 +34,9 @@ local function class(base)
   function cls:isInstanceOf(clazz)
     local mt = getmetatable(self)
     while mt do
-      if mt == clazz then return true end
+      if mt == clazz then
+        return true
+      end
       mt = mt._super
     end
     return false
@@ -50,12 +52,12 @@ local function class(base)
 
   setmetatable(cls, {
     __index = base,
-    __call  = function (c, ...)
+    __call = function(c, ...)
       return c:new(...)
-    end
+    end,
   })
 
-  return cls
+  return cls --[[@as YAXI.ClassBase]]
 end
 
 ---Splits a string by a delimiter
@@ -68,7 +70,9 @@ local function split(str, delimiter)
   local t, ll
   t = {}
   ll = 0
-  if #str == 1 then return { str } end
+  if #str == 1 then
+    return { str }
+  end
   while true do
     local l = string.find(str, delimiter, ll, true)
     if l ~= nil then
@@ -98,11 +102,9 @@ local function derFromPem(pem)
   -- Join all lines
   pem = pem:gsub("\n", "")
 
-  local start = pem:find(header) or
-    error("Failed to find PEM certificate header")
+  local start = pem:find(header) or error("Failed to find PEM certificate header")
   start = start + #header
-  local ending = pem:find(footer) or
-    error("Failed to find PEM certificate footer")
+  local ending = pem:find(footer) or error("Failed to find PEM certificate footer")
   ending = ending - 1
 
   local derBase64 = pem:sub(start, ending)
@@ -123,7 +125,7 @@ local function keys(tbl)
 end
 
 local function isAscii(str)
-    return str:match("^[\x20-\x7E]*$") ~= nil
+  return str:match("^[\x20-\x7E]*$") ~= nil
 end
 
 local function sortKeyValueTable(tbl)
@@ -134,7 +136,7 @@ local function sortKeyValueTable(tbl)
   end
 
   -- Step 2: Sort the key-value pairs by the key (lexically)
-  table.sort(sortedPairs, function (a, b)
+  table.sort(sortedPairs, function(a, b)
     return tostring(a.key) < tostring(b.key)
   end)
 
@@ -146,7 +148,6 @@ local function sortKeyValueTable(tbl)
 
   return indexedTable
 end
-
 
 local function propsToMsg(tbl, level)
   level = level or 1
@@ -173,10 +174,11 @@ local function propsToMsg(tbl, level)
       if type(v) == "table" then
         table.insert(elems, ("%s: %s"):format(k, propsToMsg(v, level + 1)))
       else
+        local displayVal = v
         if type(v) == "string" and not isAscii(v) then
-          v = base64.encode(v)
+          displayVal = base64.encode(v)
         end
-        table.insert(elems, ("%s: %s"):format(k, v))
+        table.insert(elems, ("%s: %s"):format(k, displayVal))
         leaf = true
       end
     end
@@ -195,7 +197,7 @@ local function propsToMsg(tbl, level)
     if level == 1 then
       brace = { "", "" }
     else
-      brace = braces[(level - 1) % #braces]
+      brace = braces[(level - 1) % #braces] ---@diagnostic disable-line: undefined-field
     end
     return ("%s%s%s"):format(brace[1], table.concat(elems, ", "), brace[2])
   end

@@ -32,7 +32,7 @@ end
 local Error = class()
 
 ---Create a new instance
----@param name string Name of the eror
+---@param name string Name of the error
 ---@param message string Error message
 ---@param options YAXI.RoutexClient.Error.Options
 ---@return YAXI.RoutexClient.Error
@@ -65,10 +65,18 @@ function Error:__tostring()
   local o = self.options or {}
   local location = ""
 
-  if o.fileName then location = location .. o.fileName end
-  if o.lineNumber then location = location .. ":" .. o.lineNumber end
-  if o.functionName then location = location .. " (" .. o.functionName .. ")" end
-  if location ~= "" then location = " [" .. location .. "]" end
+  if o.fileName then
+    location = location .. o.fileName
+  end
+  if o.lineNumber then
+    location = location .. ":" .. o.lineNumber
+  end
+  if o.functionName then
+    location = location .. " (" .. o.functionName .. ")"
+  end
+  if location ~= "" then
+    location = " [" .. location .. "]"
+  end
 
   return string.format("%s: %s%s", self.name, self.message, location)
 end
@@ -158,7 +166,7 @@ function AccessExceededError:new(userMessage, options)
   return obj
 end
 
----@enum RoutexClient.ServiceBlockedCode
+---@enum YAXI.RoutexClient.ServiceBlockedCode
 local ServiceBlockedCode = {
   --- Something is not set up for the user, e.g., there are no TAN methods.
   MissingSetup = "MISSING_SETUP",
@@ -167,11 +175,11 @@ local ServiceBlockedCode = {
 }
 
 ---@class YAXI.RoutexClient.Error.ServiceBlocked: YAXI.RoutexClient.Error
----@field code RoutexClient.ServiceBlockedCode?
+---@field code YAXI.RoutexClient.ServiceBlockedCode?
 ---@field userMessage string? Description or advice to the user how to deal with the error
 local ServiceBlockedError = class(Error)
 
----@param code RoutexClient.ServiceBlockedCode?
+---@param code YAXI.RoutexClient.ServiceBlockedCode?
 ---@param userMessage string?
 ---@param options YAXI.RoutexClient.Error.Options?
 ---@return YAXI.RoutexClient.Error.ServiceBlocked
@@ -239,6 +247,8 @@ local UnsupportedProductReason = {
   Limit = "LIMIT",
   --- The recipient is not capable to receive the payment product.
   Recipient = "RECIPIENT",
+  --- Scheduled payments are not supported.
+  Scheduled = "SCHEDULED",
 }
 
 ---@class YAXI.RoutexClient.Error.UnsupportedProduct: YAXI.RoutexClient.Error
@@ -259,6 +269,7 @@ function UnsupportedProductError:new(reason, userMessage, options)
   local unsupportedProductReasonMap = {
     Limit = UnsupportedProductReason.Limit,
     Recipient = UnsupportedProductReason.Recipient,
+    Scheduled = UnsupportedProductReason.Scheduled,
   }
   obj.reason = unsupportedProductReasonMap[reason] or nil
   obj.userMessage = userMessage
@@ -302,6 +313,7 @@ local UnexpectedValueError = class(Error)
 
 ---@param message string
 ---@param options? YAXI.RoutexClient.Error.Options
+---@return YAXI.RoutexClient.Error.UnexpectedValue
 function UnexpectedValueError:new(message, options)
   local obj = super(self).new(self, "UnexpectedValueError", message, options or {})
   setmetatable(obj, self)
@@ -310,14 +322,23 @@ end
 
 ---@enum YAXI.RoutexClient.TicketErrorCode
 local TicketErrorCode = {
+  --- Missing "yaxi-ticket" header.
   Missing = "Missing",
+  --- Invalid ticket.
   Invalid = "Invalid",
+  --- Ticket token lacks "kid".
   MissingKey = "MissingKey",
+  --- Unknown key.
   UnknownKey = "UnknownKey",
+  --- Ticket does not match service.
   Mismatch = "Mismatch",
+  --- Ticket is expired.
   Expired = "Expired",
+  --- Ticket lifetime is too long.
   InvalidLifetime = "InvalidLifetime",
+  --- Expired key.
   ExpiredKey = "ExpiredKey",
+  --- Environment mismatch between key and routex.
   KeyEnvironmentMismatch = "KeyEnvironmentMismatch",
 }
 
@@ -354,14 +375,14 @@ local ProviderError = class(Error)
 ---@param options YAXI.RoutexClient.Error.Options?
 ---@return YAXI.RoutexClient.Error.Provider
 function ProviderError:new(code, userMessage, options)
-  local message = "The account-servicing provider indicated a technical error" ..
-    (userMessage and string.format(": %s", userMessage) or "")
+  local message = "The account-servicing provider indicated a technical error"
+    .. (userMessage and string.format(": %s", userMessage) or "")
   ---@type YAXI.RoutexClient.Error.Provider
   local obj = super(self).new(self, "ProviderError", message, options or {})
   setmetatable(obj, self)
 
   local providerErrorCodeMap = {
-    Maintenance = ProviderErrorCode.Maintenance
+    Maintenance = ProviderErrorCode.Maintenance,
   }
   obj.code = providerErrorCodeMap[code] or nil
   obj.userMessage = userMessage
@@ -372,8 +393,8 @@ end
 ---@class YAXI.RoutexClient.Error.NotFound: YAXI.RoutexClient.Error
 local NotFoundError = class(Error)
 
----@param options YAXI.RoutexClient.Error.Options?
 ---@param text string?
+---@param options YAXI.RoutexClient.Error.Options?
 ---@return YAXI.RoutexClient.Error.NotFound
 function NotFoundError:new(text, options)
   local msg = "Not found"
@@ -444,6 +465,6 @@ return {
   UnexpectedValueError = UnexpectedValueError,
   UnsupportedProductError = UnsupportedProductError,
 
-  -- KeySettlment
+  -- KeySettlement
   KeySettlementError = KeySettlementError,
 }

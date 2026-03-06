@@ -3,19 +3,20 @@
 
 require("tests.init")
 
-local YAXI_DEMO_CONNECTION_ID = "connection-96386142-60e5-4ca9-abcf-944efce5bc1e";
+local YAXI_DEMO_CONNECTION_ID = "connection-96386142-60e5-4ca9-abcf-944efce5bc1e"
 
 local log = require("routex-client.logging").defaultLogger()
 
 local helpers = require("tests.helpers")
-local uuid = require("routex-client.util.uuid")
 local random = require("routex-client.crypto.random")
+local uuid = require("routex-client.util.uuid")
 local jwtDecodeUnverified = helpers.jwtDecodeUnverified
 local base64 = require("routex-client.util.base64")
 
 local routexClient = require("routex-client")
 local AccountField = routexClient.AccountField
 local AccountType = routexClient.AccountType
+local ConnectionType = routexClient.ConnectionType
 local SupportedService = routexClient.SupportedService
 local PaymentProduct = routexClient.PaymentProduct
 -- Response types
@@ -67,16 +68,16 @@ local function setup()
   return client, ticketGenerator, apiKeySecret
 end
 
-context("RoutexClient #online", function ()
+context("RoutexClient #online", function()
   local json = require("routex-client.vendor.json")
   local client, ticketGenerator, apiKeySecret = setup()
 
-  test("Service CollectPayment", function ()
+  test("Service CollectPayment", function()
     local accountsTicket = ticketGenerator:accounts(uuid.uuid4())
 
     log:debug("Accounts ticket: %s", accountsTicket)
 
-    local ok, response = pcall(function ()
+    local ok, response = pcall(function()
       return client:accounts({
         credentials = {
           connectionId = YAXI_DEMO_CONNECTION_ID,
@@ -98,12 +99,12 @@ context("RoutexClient #online", function ()
               any = {
                 { eq = { AccountField.Type, AccountType.Savings } },
                 { eq = { AccountField.Type, AccountType.Current } },
-                { eq = { AccountField.Type, nil } }
-              }
+                { eq = { AccountField.Type, nil } },
+              },
             },
-            { supports = SupportedService.CollectPayment }
-          }
-        }
+            { supports = SupportedService.CollectPayment },
+          },
+        },
       })
     end)
 
@@ -112,8 +113,14 @@ context("RoutexClient #online", function ()
       local msg = string.format("%s: %s", err.name, err.message)
       if err.options then
         local opts = err.options
-        msg = string.format("%s (caused by %s:%s:%s):%s", msg, opts.fileName, opts.lineNumber, opts.functionName,
-          opts.stackTrace)
+        msg = string.format(
+          "%s (caused by %s:%s:%s):%s",
+          msg,
+          opts.fileName,
+          opts.lineNumber,
+          opts.functionName,
+          opts.stackTrace
+        )
       end
       error(msg)
     end
@@ -129,7 +136,7 @@ context("RoutexClient #online", function ()
     response = client:respondAccounts({
       ticket = accountsTicket,
       context = context,
-      response = "133742"
+      response = "133742",
     })
 
     assert(response:isInstanceOf(Result), "Expected a Result")
@@ -159,20 +166,17 @@ context("RoutexClient #online", function ()
     assert.same({ "Dr. Peter Steiger" }, ownerNames)
 
     local selectedAccount = firstAccount.iban
-    local paymentTicket = ticketGenerator:collectPayment(
-      uuid.uuid4(),
-      {
-        amount = {
-          amount = "100",
-          currency = "EUR",
-        },
-        creditorAccount = {
-          iban = "DE79430609671288143100"
-        },
-        creditorName = "YAXI GmbH",
-        remittance = "Sign-up fee routex 123456789",
-      }
-    )
+    local paymentTicket = ticketGenerator:collectPayment(uuid.uuid4(), {
+      amount = {
+        amount = "100",
+        currency = "EUR",
+      },
+      creditorAccount = {
+        iban = "DE79430609671288143100",
+      },
+      creditorName = "YAXI GmbH",
+      remittance = "Sign-up fee routex 123456789",
+    })
 
     response = client:collectPayment({
       credentials = {
@@ -183,8 +187,8 @@ context("RoutexClient #online", function ()
       session = session,
       ticket = paymentTicket,
       account = {
-        iban = selectedAccount
-      }
+        iban = selectedAccount,
+      },
     })
 
     assert(response:isInstanceOf(Dialog), "Expected a Dialog")
@@ -195,7 +199,7 @@ context("RoutexClient #online", function ()
 
     response = client:confirmCollectPayment({
       ticket = paymentTicket,
-      context = confirmationInput.context
+      context = confirmationInput.context,
     })
 
     assert(response:isInstanceOf(Result), "Expected a Result")
@@ -205,22 +209,19 @@ context("RoutexClient #online", function ()
     assert.same(jwtPayload.data.data, {}, "Expected no Result data")
   end)
 
-  test("Service CollectPayment with debtor identification", function ()
-    local paymentTicket = ticketGenerator:collectPayment(
-      uuid.uuid4(),
-      {
-        amount = {
-          amount = "100",
-          currency = "EUR",
-        },
-        creditorAccount = {
-          iban = "DE79430609671288143100"
-        },
-        creditorName = "YAXI GmbH",
-        remittance = "Sign-up fee routex 123456789",
-        fields = { "debtorIban", "debtorName" },
-      }
-    )
+  test("Service CollectPayment with debtor identification", function()
+    local paymentTicket = ticketGenerator:collectPayment(uuid.uuid4(), {
+      amount = {
+        amount = "100",
+        currency = "EUR",
+      },
+      creditorAccount = {
+        iban = "DE79430609671288143100",
+      },
+      creditorName = "YAXI GmbH",
+      remittance = "Sign-up fee routex 123456789",
+      fields = { "debtorIban", "debtorName" },
+    })
 
     local response = client:collectPayment({
       credentials = {
@@ -229,8 +230,8 @@ context("RoutexClient #online", function ()
       },
       ticket = paymentTicket,
       account = {
-        iban = "DE02120300000000202051"
-      }
+        iban = "DE02120300000000202051",
+      },
     })
 
     assert(response:isInstanceOf(Result), "Expected a Result")
@@ -238,23 +239,20 @@ context("RoutexClient #online", function ()
 
     local jwtPayload = jwtDecodeUnverified(result.jwt)
     assert.same({
-        debtorName = "Dr. Peter Steiger",
-        debtorIban = "DE02120300000000202051"
-      },
-      jwtPayload.data.data,
-      "Expected debtor name and IBAN in Result data"
-    )
+      debtorName = "Dr. Peter Steiger",
+      debtorIban = "DE02120300000000202051",
+    }, jwtPayload.data.data, "Expected debtor name and IBAN in Result data")
   end)
 
-  test("Service CollectPayment with encrypted IBAN", function ()
-    local encrypt = function (plaintext, secret)
+  test("Service CollectPayment with encrypted IBAN", function()
+    local encrypt = function(plaintext, secret)
       local HKDF = require("routex-client.crypto.hkdf").HKDF
       local Blake2b512 = require("routex-client.crypto.blake2b_512")
       local hmac = require("routex-client.vendor.tls13.crypto.hmac")
       local ChaCha20Poly1305 = require("routex-client.vendor.tls13.crypto.cipher.chacha20-poly1305").chacha20Poly1305
 
       local hmacBlake2b512 = hmac.hmac(Blake2b512)
-      local hkdf_blake2b = HKDF.new(hmacBlake2b512, 32, "", "on-file-data")
+      local hkdf_blake2b = HKDF:new(hmacBlake2b512, 32, "", "on-file-data")
       local shared_key = hkdf_blake2b:derive(secret)
       local cipher = ChaCha20Poly1305(shared_key)
       local nonce = random.urandom(12)
@@ -263,25 +261,20 @@ context("RoutexClient #online", function ()
       return nonce .. ciphertext
     end
 
-    local paymentTicket = ticketGenerator:collectPayment(
-      uuid.uuid4(),
-      {
-        amount = {
-          amount = "100",
-          currency = "EUR",
-        },
-        creditorAccount = {
-          iban = "DE79430609671288143100"
-        },
-        creditorName = "YAXI GmbH",
-        remittance = "Sign-up fee routex 123456789",
-        fields = { "debtorIban", "debtorName" },
-      }
-    )
+    local paymentTicket = ticketGenerator:collectPayment(uuid.uuid4(), {
+      amount = {
+        amount = "100",
+        currency = "EUR",
+      },
+      creditorAccount = {
+        iban = "DE79430609671288143100",
+      },
+      creditorName = "YAXI GmbH",
+      remittance = "Sign-up fee routex 123456789",
+      fields = { "debtorIban", "debtorName" },
+    })
 
-    local debtorIbanEncrypted = base64.encode(
-      encrypt("DE02120300000000202051", apiKeySecret)
-    )
+    local debtorIbanEncrypted = base64.encode(encrypt("DE02120300000000202051", apiKeySecret))
 
     local response = client:collectPayment({
       credentials = {
@@ -292,7 +285,7 @@ context("RoutexClient #online", function ()
       account = {
         encryptedIban = debtorIbanEncrypted,
         currency = "EUR",
-      }
+      },
     })
 
     assert(response:isInstanceOf(Result), "Expected a Result")
@@ -300,15 +293,12 @@ context("RoutexClient #online", function ()
 
     local jwtPayload = jwtDecodeUnverified(result.jwt)
     assert.same({
-        debtorName = "Dr. Peter Steiger",
-        debtorIban = "DE02120300000000202051"
-      },
-      jwtPayload.data.data,
-      "Expected debtor name and IBAN in Result data"
-    )
+      debtorName = "Dr. Peter Steiger",
+      debtorIban = "DE02120300000000202051",
+    }, jwtPayload.data.data, "Expected debtor name and IBAN in Result data")
   end)
 
-  context("AccountFilter", function ()
+  context("AccountFilter", function()
     local function fetchAccounts(filter)
       local accountsTicket = ticketGenerator:accounts(uuid.uuid4())
       local response = client:accounts({
@@ -325,31 +315,31 @@ context("RoutexClient #online", function ()
       return jwtDecodeUnverified(result.jwt).data.data
     end
 
-    test("all with 0 elements (always true)", function ()
+    test("all with 0 elements (always true)", function()
       local accounts = fetchAccounts({ all = {} })
       assert.is_not.equal(0, #accounts)
     end)
 
-    test("any with 0 elements (always false)", function ()
+    test("any with 0 elements (always false)", function()
       local accounts = fetchAccounts({ any = {} })
       assert.same(0, #accounts)
     end)
 
-    test("all with 1 element", function ()
+    test("all with 1 element", function()
       local accounts = fetchAccounts({
         all = { { notEq = { AccountField.Iban, nil } } },
       })
       assert.is_not.equal(0, #accounts)
     end)
 
-    test("all with 1 element (no match)", function ()
+    test("all with 1 element (no match)", function()
       local accounts = fetchAccounts({
         all = { { eq = { AccountField.Iban, nil } } },
       })
       assert.same(0, #accounts)
     end)
 
-    test("all with 2 elements", function ()
+    test("all with 2 elements", function()
       local accounts = fetchAccounts({
         all = {
           { notEq = { AccountField.Iban, nil } },
@@ -359,7 +349,7 @@ context("RoutexClient #online", function ()
       assert.is_not.equal(0, #accounts)
     end)
 
-    test("all with 2 elements (no match)", function ()
+    test("all with 2 elements (no match)", function()
       local accounts = fetchAccounts({
         all = {
           { notEq = { AccountField.Iban, nil } },
@@ -369,7 +359,7 @@ context("RoutexClient #online", function ()
       assert.same(0, #accounts)
     end)
 
-    test("all with more than 2 elements", function ()
+    test("all with more than 2 elements", function()
       local accounts = fetchAccounts({
         all = {
           { notEq = { AccountField.Iban, nil } },
@@ -380,7 +370,7 @@ context("RoutexClient #online", function ()
       assert.is_not.equal(0, #accounts)
     end)
 
-    test("all with more than 2 elements (no match)", function ()
+    test("all with more than 2 elements (no match)", function()
       local accounts = fetchAccounts({
         all = {
           { notEq = { AccountField.Iban, nil } },
@@ -391,21 +381,21 @@ context("RoutexClient #online", function ()
       assert.same(0, #accounts)
     end)
 
-    test("any with 1 element", function ()
+    test("any with 1 element", function()
       local accounts = fetchAccounts({
         any = { { supports = SupportedService.CollectPayment } },
       })
       assert.is_not.equal(0, #accounts)
     end)
 
-    test("any with 1 element (no match)", function ()
+    test("any with 1 element (no match)", function()
       local accounts = fetchAccounts({
         any = { { eq = { AccountField.Iban, nil } } },
       })
       assert.same(0, #accounts)
     end)
 
-    test("any with 2 elements", function ()
+    test("any with 2 elements", function()
       local accounts = fetchAccounts({
         any = {
           { eq = { AccountField.Iban, nil } },
@@ -415,7 +405,7 @@ context("RoutexClient #online", function ()
       assert.is_not.equal(0, #accounts)
     end)
 
-    test("any with 2 elements (no match)", function ()
+    test("any with 2 elements (no match)", function()
       local accounts = fetchAccounts({
         any = {
           { eq = { AccountField.Iban, nil } },
@@ -425,7 +415,7 @@ context("RoutexClient #online", function ()
       assert.same(0, #accounts)
     end)
 
-    test("any with more than 2 elements", function ()
+    test("any with more than 2 elements", function()
       local accounts = fetchAccounts({
         any = {
           { eq = { AccountField.Iban, nil } },
@@ -436,7 +426,7 @@ context("RoutexClient #online", function ()
       assert.is_not.equal(0, #accounts)
     end)
 
-    test("any with more than 2 elements (no match)", function ()
+    test("any with more than 2 elements (no match)", function()
       local accounts = fetchAccounts({
         any = {
           { eq = { AccountField.Iban, nil } },
@@ -447,7 +437,7 @@ context("RoutexClient #online", function ()
       assert.same(0, #accounts)
     end)
 
-    test("nested any inside all", function ()
+    test("nested any inside all", function()
       local accounts = fetchAccounts({
         all = {
           { notEq = { AccountField.Iban, nil } },
@@ -462,7 +452,7 @@ context("RoutexClient #online", function ()
       assert.is_not.equal(0, #accounts)
     end)
 
-    test("nested any inside all (no match)", function ()
+    test("nested any inside all (no match)", function()
       local accounts = fetchAccounts({
         all = {
           { notEq = { AccountField.Iban, nil } },
@@ -477,7 +467,7 @@ context("RoutexClient #online", function ()
       assert.same(0, #accounts)
     end)
 
-    test("nested all inside any", function ()
+    test("nested all inside any", function()
       local accounts = fetchAccounts({
         any = {
           { eq = { AccountField.Iban, nil } },
@@ -492,7 +482,7 @@ context("RoutexClient #online", function ()
       assert.is_not.equal(0, #accounts)
     end)
 
-    test("nested all inside any (no match)", function ()
+    test("nested all inside any (no match)", function()
       local accounts = fetchAccounts({
         any = {
           { eq = { AccountField.Iban, nil } },
@@ -508,11 +498,8 @@ context("RoutexClient #online", function ()
     end)
   end)
 
-  test("Service Transfer", function ()
-    local transferTicket = ticketGenerator:issue(
-      uuid.uuid4(),
-      "Transfer"
-    )
+  test("Service Transfer", function()
+    local transferTicket = ticketGenerator:issue(uuid.uuid4(), "Transfer")
 
     ---@type YAXI.RoutexClient.Credentials
     local credentials = {
@@ -534,7 +521,7 @@ context("RoutexClient #online", function ()
             iban = "DE79430609671288143100",
           },
           creditorName = "YAXI GmbH",
-        }
+        },
       },
     })
 
@@ -559,11 +546,8 @@ context("RoutexClient #online", function ()
     assert.same(jwtPayload.data.data, {}, "Expected no Result data")
   end)
 
-  test("Service Balances", function ()
-    local balancesTicket = ticketGenerator:issue(
-      uuid.uuid4(),
-      "Balances"
-    )
+  test("Service Balances", function()
+    local balancesTicket = ticketGenerator:issue(uuid.uuid4(), "Balances")
     ---@type YAXI.RoutexClient.Credentials
     local credentials = {
       connectionId = YAXI_DEMO_CONNECTION_ID,
@@ -577,7 +561,7 @@ context("RoutexClient #online", function ()
         {
           iban = "DE02120300000000202051",
           currency = "EUR",
-        }
+        },
       },
     })
 
@@ -607,18 +591,18 @@ context("RoutexClient #online", function ()
         {
           account = {
             currency = "EUR",
-            iban = "DE02120300000000202051"
+            iban = "DE02120300000000202051",
           },
           balances = {
-            { amount = "8877.78", balanceType = "Booked",    currency = "EUR" },
+            { amount = "8877.78", balanceType = "Booked", currency = "EUR" },
             { amount = "8947.64", balanceType = "Available", currency = "EUR" },
           },
         },
-      }
+      },
     }, jwtPayload.data.data)
   end)
 
-  test("Connection info", function ()
+  test("Connection info", function()
     local userInput = "sparkasse stadt"
 
     -- Split input at whitespace for improved name matching
@@ -626,7 +610,7 @@ context("RoutexClient #online", function ()
     local filters = {}
     for match in userInput:gmatch("%S+") do
       table.insert(filters, {
-        term = match
+        term = match,
       })
     end
 
@@ -819,17 +803,20 @@ context("RoutexClient #online", function ()
         logoId = "sparkasse",
         userId = "Anmeldename",
         password = "Online-Banking-PIN",
-      }
+      },
     }, connectionInfos)
   end)
 
-  test("Public search", function ()
+  test("Public search", function()
     local result = client:search({
       filters = {
         {
+          types = { ConnectionType.Production },
+        },
+        {
           name = "C24 Bank",
-        }
-      }
+        },
+      },
     })
 
     for _, info in ipairs(result) do
@@ -837,24 +824,31 @@ context("RoutexClient #online", function ()
     end
   end)
 
-  test("Service Transactions", function ()
-    local transactionsTicket = ticketGenerator:transactions(
-      uuid.uuid4(),
-      {
-        account = {
-          iban = "DE02120300000000202051",
-          currency = "EUR",
-        },
-        range = {
-          from = "2019-01-13",
-        },
-      }
-    )
+  test("System version", function()
+    local systemVersion = client:systemVersion()
+    assert.is_not_nil(systemVersion)
+    assert.is_string(systemVersion.kind)
+    assert.is_number(systemVersion.generation)
+    assert.is_string(systemVersion.createdAt)
+    assert.is_string(systemVersion.ref)
+    assert.is_string(systemVersion.launchMeasurement)
+  end)
+
+  test("Service Transactions", function()
+    local transactionsTicket = ticketGenerator:transactions(uuid.uuid4(), {
+      account = {
+        iban = "DE02120300000000202051",
+        currency = "EUR",
+      },
+      range = {
+        from = "2019-01-13",
+      },
+    })
 
     local credentials = {
       connectionId = "connection-96386142-60e5-4ca9-abcf-944efce5bc1e",
       userId = "confirmation",
-    };
+    }
 
     local response = client:transactions({
       credentials = credentials,
@@ -903,7 +897,7 @@ context("RoutexClient #online", function ()
     }, jwtPayload.data.data[1])
   end)
 
-  context("Redirect dialogs", function ()
+  context("Redirect dialogs", function()
     ---@diagnostic disable-next-line: invisible
     local httpClient = client._httpClient
 
@@ -920,36 +914,33 @@ context("RoutexClient #online", function ()
       local redirectBaseUrl = "https://redirect.yaxi.tech"
       if url:find(redirectBaseUrl) == 1 then
         local redirectQuery = url:sub(#redirectBaseUrl + 1 + 2) -- also skip the '/?'
-        local request = Request
-          :builder("https://remux.yaxi.tech/redirect")
-          :method("POST")
-          :data(redirectQuery)
-          :build()
+        local request = Request:builder("https://remux.yaxi.tech/redirect"):method("POST"):data(redirectQuery):build()
         local response, request = httpClient:request(request)
         local res = response.body
         if response.status ~= 200 or res == nil or res == "" then
-          error(string.format("Expected response status 200 with a body\nRequest:\n%s\nResponse:\n%s",
-            request, response))
+          error(
+            string.format("Expected response status 200 with a body\nRequest:\n%s\nResponse:\n%s", request, response)
+          )
         end
         return res
       else
-        local response, request = httpClient:request(
-          Request
-          :builder(url)
-          :method("GET")
-          :follow_redirects(false)
-          :build()
-        )
+        local response, request = httpClient:request(Request:builder(url):method("GET"):followRedirects(false):build())
         local res = response.headers["location"]
         if response.status ~= 303 or not res then
-          error(string.format("Expected response status 303, got %s.\nRequest:\n%s\nResponse:\n%s", response.status,
-            request, response))
+          error(
+            string.format(
+              "Expected response status 303, got %s.\nRequest:\n%s\nResponse:\n%s",
+              response.status,
+              request,
+              response
+            )
+          )
         end
         return res
       end
     end
 
-    test("RedirectHandle", function ()
+    test("RedirectHandle", function()
       local accountsTicket = ticketGenerator:accounts(uuid.uuid4())
 
       local response = client:accounts({
@@ -984,7 +975,7 @@ context("RoutexClient #online", function ()
       assert(response:isInstanceOf(Result), "Expected a Result")
     end)
 
-    test("setRedirectUri", function ()
+    test("setRedirectUri", function()
       client:setRedirectUri("myapp://redirect?context=signup")
 
       local accountsTicket = ticketGenerator:accounts(uuid.uuid4())
@@ -1014,12 +1005,12 @@ context("RoutexClient #online", function ()
     end)
   end)
 
-  context("Errors", function ()
-    test("Error expired ticket", function ()
+  context("Errors", function()
+    test("Error expired ticket", function()
       -- Issue already expired ticket
       local accountsTicket = ticketGenerator:accounts(uuid.uuid4(), os.time() - 5 * 60)
       ---@type boolean, YAXI.RoutexClient.OBResponse?
-      local ok, response = pcall(function ()
+      local ok, response = pcall(function()
         client:info({
           ticket = accountsTicket,
           connectionId = YAXI_DEMO_CONNECTION_ID,
@@ -1038,8 +1029,8 @@ context("RoutexClient #online", function ()
     end)
   end)
 
-  context("Traces", function ()
-    test("Retrieve trace", function ()
+  context("Traces", function()
+    test("Retrieve trace", function()
       local traceId = client:traceId()
 
       local accountsTicket = ticketGenerator:accounts(uuid.uuid4())
@@ -1067,12 +1058,14 @@ context("RoutexClient #online", function ()
       end
     end)
 
-    test("Settles key", function ()
+    test("Settles key", function()
       local client, ticketGenerator = setup()
       assert.is_nil(client._settlement._serverKey)
 
       local accountsTicket = ticketGenerator:accounts(uuid.uuid4())
-      local ok, res = pcall(function () client:trace(accountsTicket, "wurzeltrace") end)
+      local ok, res = pcall(function()
+        client:trace(accountsTicket, "wurzeltrace")
+      end)
       assert.is_false(ok)
       assert.is_true(res:isInstanceOf(NotFoundError))
 
@@ -1081,11 +1074,11 @@ context("RoutexClient #online", function ()
   end)
 end)
 
-context("fromJSON/toJSON", function ()
+context("fromJSON/toJSON", function()
   local base64Data = "YWJjCg=="
   local binaryData = string.char(97, 98, 99, 10)
 
-  test("Result", function ()
+  test("Result", function()
     local json = {
       Result = { "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", base64Data, base64Data },
     }
@@ -1100,7 +1093,7 @@ context("fromJSON/toJSON", function ()
     assert.same(result:toJSON(), json)
   end)
 
-  test("Dialog", function ()
+  test("Dialog", function()
     local json = {
       Dialog = {
         context = "Sca",
@@ -1112,10 +1105,10 @@ context("fromJSON/toJSON", function ()
             secrecyLevel = "Plain",
             minLength = 6,
             maxLength = 6,
-            context = base64Data
-          }
-        }
-      }
+            context = base64Data,
+          },
+        },
+      },
     }
     -- fromJSON
     local response = OBResponse.fromJSON(json)
@@ -1135,13 +1128,13 @@ context("fromJSON/toJSON", function ()
     assert.same(dialog:toJSON(), json)
   end)
 
-  test("Redirect", function ()
+  test("Redirect", function()
     -- Create the JSON object
     local json = {
       Redirect = {
         url = "http://example.com/",
-        context = base64Data
-      }
+        context = base64Data,
+      },
     }
     -- fromJSON
     local response = OBResponse.fromJSON(json)
@@ -1155,7 +1148,7 @@ context("fromJSON/toJSON", function ()
     assert.same(redirect:toJSON(), json)
   end)
 
-  test("RedirectHandle", function ()
+  test("RedirectHandle", function()
     -- Create the JSON object
     local json = {
       RedirectHandle = {

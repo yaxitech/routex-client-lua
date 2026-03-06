@@ -1,16 +1,15 @@
 -- SPDX-License-Identifier: MIT
 -- Author: Vincent Haupert <vincent.haupert@yaxi.tech>
 
-local log = require("routex-client.logging").defaultLogger()
 local errors = require("routex-client.errors")
+local log = require("routex-client.logging").defaultLogger()
 local ResponseError = errors.ResponseError
-local NotFoundError = errors.NotFoundError
 local KeySettlementError = errors.KeySettlementError
 
 local RemoteAttestation = require("routex-client.attestation").RemoteAttestation
 
 local base64 = require("routex-client.util.base64")
-local chacha_box_ietf = require("routex-client.crypto.chacha_box_ietf")
+local chachaBoxIetf = require("routex-client.crypto.chacha_box_ietf")
 local ed25519 = require("routex-client.vendor.tls13.sigalg").makeEd25519SigAlg()
 local http = require("routex-client.http")
 local json = require("routex-client.vendor.json")
@@ -45,18 +44,18 @@ local YaxiSigningKeys = {
 
 ---@alias YAXI.KeySettlement.ServerKey { publicKey: YAXI.Crypto.PublicKey, base64SessionId: string }
 
----@class YAXI.KeySettlement
+---@class YAXI.KeySettlement: YAXI.ClassBase
 ---@field private _url string
 ---@field private _httpClient YAXI.Http.IClient
 ---@field private _secretKey YAXI.Crypto.SecretKey
 ---@field private _serverKey YAXI.KeySettlement.ServerKey?
----@field private _measurement string?
----@field private _signingKeys [string, string]
+---@field private _systemVersion YAXI.KeySettlement.SettlementResponse.SystemVersion?
+---@field private _signingKeys table<string, string> Map from key ID to public key
 local KeySettlement = util.class()
 
 ---Create a new instance
 ---@param url string
----@param signingKeys [string, string]? System version signing keys; defaults to builtin keys
+---@param signingKeys table<string, string>? Map from key ID to public key; defaults to builtin keys
 ---@param httpClient YAXI.Http.IClient? If `nil`, uses a default client based on `lua-http`
 ---@return YAXI.KeySettlement
 function KeySettlement:new(url, signingKeys, httpClient)
@@ -64,9 +63,9 @@ function KeySettlement:new(url, signingKeys, httpClient)
   obj._url = url
   obj._signingKeys = signingKeys or YaxiSigningKeys
   obj._httpClient = httpClient or http.DefaultHttpClient:new()
-  obj._secretKey = chacha_box_ietf.SecretKey.generate()
+  obj._secretKey = chachaBoxIetf.SecretKey.generate()
   obj._serverKey = nil
-  obj._measurement = nil
+  obj._systemVersion = nil
   log:debug("Key settlement URL: %s", url)
   return obj
 end
@@ -74,13 +73,8 @@ end
 ---Perform a new key settlement
 ---@param headers table<string, string>?
 function KeySettlement:_settle(headers)
-  local payload = { publicKey = base64.encode(self._secretKey:public_key():public_bytes_raw()) }
-  local request = http.Request
-    :builder(self._url)
-    :headers(headers or {})
-    :method("POST")
-    :json(payload)
-    :build()
+  local payload = { publicKey = base64.encode(self._secretKey:publicKey():publicBytesRaw()) }
+  local request = http.Request:builder(self._url):headers(headers or {}):method("POST"):json(payload):build()
 
   log:debug("Settlement request: \n%s", request)
 
@@ -94,47 +88,47 @@ function KeySettlement:_settle(headers)
     error(string.format("Failed to JSON-decode key settlement response: %s\n%s", r, json.encode(response)))
   end
 
-  local key_settlement_response = r --[[@as YAXI.KeySettlement.SettlementResponse]]
-  self._measurement = self:_verifySystemVersion(key_settlement_response)
+  local keySettlementResponse = r --[[@as YAXI.KeySettlement.SettlementResponse]]
+  self._systemVersion = self:_verifySystemVersion(keySettlementResponse)
 
-  local chacha_box = base64.decode(key_settlement_response.chachaBox)
-  assert(chacha_box ~= nil, "Expected valid chacha box bytes")
+  local chachaBox = base64.decode(keySettlementResponse.chachaBox)
+  assert(chachaBox, "Expected valid chacha box bytes")
 
-  local settlement_box_message = json.decode(self._secretKey:unseal(chacha_box))
-  local server_public_key_raw = base64.decode(settlement_box_message.publicKey)
-  assert(server_public_key_raw ~= nil, "Expected valid server public key bytes")
+  local settlementBoxMessage = json.decode(self._secretKey:unseal(chachaBox))
+  local serverPublicKeyRaw = base64.decode(settlementBoxMessage.publicKey)
+  assert(serverPublicKeyRaw, "Expected valid server public key bytes")
   self._serverKey = {
-    publicKey = chacha_box_ietf.PublicKey:from_public_bytes(server_public_key_raw),
-    base64SessionId = settlement_box_message.sessionId
+    publicKey = chachaBoxIetf.PublicKey:fromPublicBytes(serverPublicKeyRaw),
+    base64SessionId = settlementBoxMessage.sessionId,
   }
 end
 
 ---Retrieve the server key
----@param settlement_headers table<string, string>?
+---@param settlementHeaders table<string, string>?
 ---@return YAXI.KeySettlement.ServerKey
-function KeySettlement:_getServerKey(settlement_headers)
+function KeySettlement:_getServerKey(settlementHeaders)
   if not self._serverKey then
-    self:_settle(settlement_headers)
+    self:_settle(settlementHeaders)
   end
   assert(self._serverKey, "Expected settled server key")
   return self._serverKey
 end
 
 ---Get the Base64-encoded session ID
----@param settlement_headers table<string, string>?
+---@param settlementHeaders table<string, string>?
 ---@return string
-function KeySettlement:getBase64SessionId(settlement_headers)
-  local server_key = self:_getServerKey(settlement_headers)
-  return server_key.base64SessionId
+function KeySettlement:getBase64SessionId(settlementHeaders)
+  local serverKey = self:_getServerKey(settlementHeaders)
+  return serverKey.base64SessionId
 end
 
 ---Seal the plaintext
----@param plaintext string
----@param settlement_headers table<string, string>?
+---@param plaintext binary
+---@param settlementHeaders table<string, string>?
 ---@return binary
-function KeySettlement:seal(plaintext, settlement_headers)
-  local server_key = self:_getServerKey(settlement_headers)
-  local ciphertext = server_key.publicKey:seal(plaintext)
+function KeySettlement:seal(plaintext, settlementHeaders)
+  local serverKey = self:_getServerKey(settlementHeaders)
+  local ciphertext = serverKey.publicKey:seal(plaintext)
   return ciphertext
 end
 
@@ -147,18 +141,17 @@ end
 function KeySettlement:_verifySystemVersionSignature(systemVersion)
   local keyId = systemVersion.signature.keyId
   ---@diagnostic disable-next-line undefined-field
-  local signingKey = self._signingKeys[keyId] or
-    error(KeySettlementError:new(string.format("Could not find a trusted signing key with ID %s", keyId)))
-  local measurement = base64.decode(systemVersion.launchMeasurement) or
-    error(KeySettlementError:new("Failed to Base64-decode system version launch measurement"))
-  local signature = base64.decode(systemVersion.signature.value) or
-    error(KeySettlementError:new("Failed to Base64-decode system version signature"))
-  local signingPayload =
-    systemVersion.kind ..
-    systemVersion.generation ..
-    systemVersion.createdAt:gsub("Z", "+00:00") ..
-    systemVersion.ref ..
-    measurement
+  local signingKey = self._signingKeys[keyId]
+    or error(KeySettlementError:new(string.format("Could not find a trusted signing key with ID %s", keyId)))
+  local measurement = base64.decode(systemVersion.launchMeasurement)
+    or error(KeySettlementError:new("Failed to Base64-decode system version launch measurement"))
+  local signature = base64.decode(systemVersion.signature.value)
+    or error(KeySettlementError:new("Failed to Base64-decode system version signature"))
+  local signingPayload = systemVersion.kind
+    .. systemVersion.generation
+    .. systemVersion.createdAt:gsub("Z", "+00:00")
+    .. systemVersion.ref
+    .. measurement
   local valid = ed25519:verify(signingKey, signingPayload, signature)
   if not valid then
     error(KeySettlementError:new(string.format("Invalid system version signature (key %s)", keyId)))
@@ -169,9 +162,9 @@ end
 ---@return YAXI.Attestation.RemoteAttestation
 function KeySettlement._verifyMeasurement(response)
   -- Verify VCEK and attestation report
-  local reportBytes = base64.decode(response.attestationReport) or
-    error(KeySettlementError:new("Failed to Base64-decode attestation report"))
-  local ok, res = pcall(function ()
+  local reportBytes = base64.decode(response.attestationReport)
+    or error(KeySettlementError:new("Failed to Base64-decode attestation report"))
+  local ok, res = pcall(function()
     return RemoteAttestation:new(response.vcek, reportBytes)
   end)
   if not ok then
@@ -180,44 +173,52 @@ function KeySettlement._verifyMeasurement(response)
   local attestation = res
 
   -- Make sure system version measurement and report measurement match
-  local launchMeasurement = base64.decode(response.systemVersion.launchMeasurement) or
-    error(KeySettlementError:new("Failed to Base64-decode system version launch measurement"))
-  if launchMeasurement ~= attestation.report.measurement then
-    error(KeySettlementError:new(string.format("Failed to verify YAXI routex measurement. Expected %s, got: %s",
-      launchMeasurement, attestation.report.measurement)))
+  local launchMeasurement = base64.decode(response.systemVersion.launchMeasurement)
+    or error(KeySettlementError:new("Failed to Base64-decode system version launch measurement"))
+  local report = attestation.report or error(KeySettlementError:new("Attestation is missing report"))
+  if launchMeasurement ~= report.measurement then
+    error(
+      KeySettlementError:new(
+        string.format(
+          "Failed to verify YAXI routex measurement. Expected %s, got: %s",
+          launchMeasurement,
+          report.measurement
+        )
+      )
+    )
   end
   log:debug("Verified launch measurement in system version matches report's launch measurement")
 
-  return attestation
+  return attestation --[[@as YAXI.Attestation.RemoteAttestation]]
 end
 
 ---Verify the system version (signature, measurement)
 ---@param response YAXI.KeySettlement.SettlementResponse
----@return string @Launch measurement
+---@return YAXI.KeySettlement.SettlementResponse.SystemVersion
 function KeySettlement:_verifySystemVersion(response)
-  local systemVersion = response.systemVersion or
-    error(KeySettlementError:new("Settlement response lacks system version"))
+  local systemVersion = response.systemVersion
+    or error(KeySettlementError:new("Settlement response lacks system version"))
 
   self:_verifySystemVersionSignature(systemVersion)
   local attestation = self._verifyMeasurement(response)
 
   -- Verify attestation report data
-  local chachaBox = base64.decode(response.chachaBox) or
-    error(KeySettlementError:new("Failed to Base64-decode chacha box"))
+  local chachaBox = base64.decode(response.chachaBox)
+    or error(KeySettlementError:new("Failed to Base64-decode chacha box"))
   local chachaBoxSha256 = sha2.sha256():update(chachaBox):finish()
   if chachaBoxSha256 ~= attestation.report.reportData:sub(1, sha2.sha256.HASH_SIZE) then
     error(KeySettlementError:new("Attestation report doesn't match the SHA-256 digest of chacha box"))
   end
 
-  self:_logInfo(systemVersion, attestation)
+  KeySettlement._logInfo(systemVersion, attestation)
 
-  return systemVersion.launchMeasurement
+  return systemVersion
 end
 
 ---Log infos about a successfully verified key settlement
 ---@param systemVersion YAXI.KeySettlement.SettlementResponse.SystemVersion
 ---@param attestation YAXI.Attestation.RemoteAttestation
-function KeySettlement:_logInfo(systemVersion, attestation)
+function KeySettlement._logInfo(systemVersion, attestation)
   local committedVersion = ("%s.%s.%s"):format(
     attestation.report.committed.major,
     attestation.report.committed.minor,
@@ -232,14 +233,16 @@ function KeySettlement:_logInfo(systemVersion, attestation)
       ["patch level"] = {
         ["version"] = committedVersion,
         ["TCB"] = util.sortKeyValueTable(attestation.report.committedTcb),
-      }
+      },
     },
   })
   log:info("YAXI routex system version verified: " .. msg)
 end
 
-function KeySettlement:measurement()
-  return self._measurement
+---System version for the currently established session.
+---@return YAXI.KeySettlement.SettlementResponse.SystemVersion?
+function KeySettlement:systemVersion()
+  return self._systemVersion
 end
 
 return KeySettlement

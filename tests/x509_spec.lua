@@ -24,7 +24,7 @@ local function loadPemFile(path)
       if line:sub(1, 5) == "-----" then
         table.insert(certs, {
           caName,
-          assert(base64.decode(table.concat(certLines)))
+          assert(base64.decode(table.concat(certLines))),
         })
         certLines = nil
       else
@@ -44,7 +44,7 @@ test("Registers AMD SEV-SNP OIDs", function()
   assert.is_not_nil(oid.amdSnp)
 end)
 
-context("VCEK Chain Milan", function ()
+context("VCEK Chain Milan", function()
   local chain = loadPemFile("tests/data/vcek-chain-milan.pem")
 
   for _, element in ipairs(chain) do
@@ -57,7 +57,7 @@ context("VCEK Chain Milan", function ()
     assert.is_not_nil(cert.tbsCertificate)
 
     if name == "SEV-VCEK" then
-      test("AMD " .. name, function ()
+      test("AMD " .. name, function()
         assert.same({
           tbsCertificate = {
             version = 3,
@@ -238,7 +238,7 @@ context("VCEK Chain Milan", function ()
   end
 end)
 
-context("VCEK Chain Genoa", function ()
+context("VCEK Chain Genoa", function()
   local chain = loadPemFile("tests/data/vcek-chain-genoa.pem")
 
   for _, element in ipairs(chain) do
@@ -250,7 +250,7 @@ context("VCEK Chain Genoa", function ()
     assert.is_not.nil_(cert.tbsCertificate)
 
     if name == "SEV-VCEK" then
-      test("AMD " .. name, function ()
+      test("AMD " .. name, function()
         assert.same({
           tbsCertificate = {
             version = 3,
@@ -339,9 +339,9 @@ context("VCEK Chain Genoa", function ()
                 },
               },
               subjectPublicKey = bitstring.fromHex(
-                "044AB0A6F9F085E7512A1E5A14AA1521C86CB0E3049F2CAF908B2DDE0610CB8C8" ..
-                "53CA94EE398D4F0D10E6F464EAA884F105A80C0892C8DDFC4FA12AF1C9131A7A9" ..
-                "91A42B95819BC3BDAFBBC7E7AA769CA2DCFB0B89F60CD6FF237886F3903E45BB"
+                "044AB0A6F9F085E7512A1E5A14AA1521C86CB0E3049F2CAF908B2DDE0610CB8C8"
+                  .. "53CA94EE398D4F0D10E6F464EAA884F105A80C0892C8DDFC4FA12AF1C9131A7A9"
+                  .. "91A42B95819BC3BDAFBBC7E7AA769CA2DCFB0B89F60CD6FF237886F3903E45BB"
               ),
             },
             extensions = utilMap.makeProjectionMap(tostring, {
@@ -399,8 +399,8 @@ context("VCEK Chain Genoa", function ()
                 extnID = oid.amdSnp.hwID,
                 critical = false,
                 extnValue = util.fromHex(
-                  "9dc99962c063029e430b6f7b734075ec542f4f3ec639e657e14585d3fe559b38" ..
-                  "532bc42d037d618317694ad6634d2507964e276c8eedeac4978c7006bf89f8e1"
+                  "9dc99962c063029e430b6f7b734075ec542f4f3ec639e657e14585d3fe559b38"
+                    .. "532bc42d037d618317694ad6634d2507964e276c8eedeac4978c7006bf89f8e1"
                 ),
               },
             }),
@@ -424,22 +424,22 @@ context("VCEK Chain Genoa", function ()
             },
           },
           signatureValue = bitstring.fromHex(
-            "58c555e0d3e6995186ab221741c37b4c7142e661065ba1243cedc634f5f749e2" ..
-            "0f89c72493d8a267da8239f2f3f5fbbca8c96c46cc53cb5f212a3aa54b744bbd" ..
-            "f577d5fa6145835929af12d16582fec0df2b4c91246da2da0ddb173c5a22da5b" ..
-            "5dd94c817de162acb29557a9a4286ec2605d950ec216b6d9fe5aeedcaf6fe047" ..
-            "ab960b826c49fc806b6c188b7cd22346513d35ee075a6bae60e6c3e79d148294" ..
-            "7c6ea55b7c603d0b949f32c3e99c2338c0a2f980f716a902b8d443fca20aa95b" ..
-            "43c8992156646dc88b6e37af9c89003b6612f943a687797c6514e6845c5ac777" ..
-            "f1619ac6a9bf349c9d76be6607a1aca04d8afd0274d8374eb17a5f213b6d5161" ..
-            "ef7bd540e4a89c4c40f1e0ba5abaa3d5283710947cd1c9ed1cbce927d265dbc6" ..
-            "822c5e30557adc988697f3bdac0881cf3becf9f5f27094d2257d5768ca387032" ..
-            "84d88df0ad62133c0af1916e7511263f787bec638840e095accf08c2bfb4a144" ..
-            "5ccc9675e7b82116451ee4eba9e8f84f2f171e05113a327062dcdf505915c10b" ..
-            "9f3d7e4d5b518aee348f9ba3eb5016bc94e0192a366f1c6159f4f90064dd79a3" ..
-            "7312d045decda18083412983a9416b3eee02708db474ec470fd1a46d8095d22d" ..
-            "ccbe473b32fa96b3a17cfa8c2ad169e1de32573d9119e7c3f2c28ee40c88da1c" ..
-            "f87001d2d1e7a594819808aa3c46be682029a9910578b1e3ffe5da9ef008a933"
+            "58c555e0d3e6995186ab221741c37b4c7142e661065ba1243cedc634f5f749e2"
+              .. "0f89c72493d8a267da8239f2f3f5fbbca8c96c46cc53cb5f212a3aa54b744bbd"
+              .. "f577d5fa6145835929af12d16582fec0df2b4c91246da2da0ddb173c5a22da5b"
+              .. "5dd94c817de162acb29557a9a4286ec2605d950ec216b6d9fe5aeedcaf6fe047"
+              .. "ab960b826c49fc806b6c188b7cd22346513d35ee075a6bae60e6c3e79d148294"
+              .. "7c6ea55b7c603d0b949f32c3e99c2338c0a2f980f716a902b8d443fca20aa95b"
+              .. "43c8992156646dc88b6e37af9c89003b6612f943a687797c6514e6845c5ac777"
+              .. "f1619ac6a9bf349c9d76be6607a1aca04d8afd0274d8374eb17a5f213b6d5161"
+              .. "ef7bd540e4a89c4c40f1e0ba5abaa3d5283710947cd1c9ed1cbce927d265dbc6"
+              .. "822c5e30557adc988697f3bdac0881cf3becf9f5f27094d2257d5768ca387032"
+              .. "84d88df0ad62133c0af1916e7511263f787bec638840e095accf08c2bfb4a144"
+              .. "5ccc9675e7b82116451ee4eba9e8f84f2f171e05113a327062dcdf505915c10b"
+              .. "9f3d7e4d5b518aee348f9ba3eb5016bc94e0192a366f1c6159f4f90064dd79a3"
+              .. "7312d045decda18083412983a9416b3eee02708db474ec470fd1a46d8095d22d"
+              .. "ccbe473b32fa96b3a17cfa8c2ad169e1de32573d9119e7c3f2c28ee40c88da1c"
+              .. "f87001d2d1e7a594819808aa3c46be682029a9910578b1e3ffe5da9ef008a933"
           ),
         }, cert)
       end)
@@ -447,7 +447,7 @@ context("VCEK Chain Genoa", function ()
   end
 end)
 
-context("VCEK Chain Turin", function ()
+context("VCEK Chain Turin", function()
   local chain = loadPemFile("tests/data/vcek-chain-turin.pem")
 
   for _, element in ipairs(chain) do
@@ -458,9 +458,8 @@ context("VCEK Chain Turin", function ()
     assert:set_parameter("TableFormatLevel", -1)
     assert.is_not.nil_(cert.tbsCertificate)
 
-
     if name == "SEV-VCEK" then
-      test("AMD " .. name, function ()
+      test("AMD " .. name, function()
         assert.same({
           tbsCertificate = {
             version = 3,

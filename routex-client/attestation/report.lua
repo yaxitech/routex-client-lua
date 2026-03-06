@@ -44,7 +44,7 @@ local util = require("routex-client.util")
 
 ---@enum YAXI.Attestation.Report.SigAlgo
 local SignatureAlgorithm = {
-  ecdsaP384WithSha384 = 1
+  ecdsaP384WithSha384 = 1,
 }
 
 ---@enum YAXI.Attestation.Report.KeyInfo.SigningKey
@@ -58,33 +58,33 @@ local SigningKey = {
 ---@field version integer Report version (u32)
 ---@field guestSvn integer Guest SVN (u32)
 ---@field policy YAXI.Attestation.Report.GuestPolicy Guest policy (u64 bitfield)
----@field familyId string FamilyID[16] (binary string)
----@field imageId string ImageID[16] (binary string)
+---@field familyId binary FamilyID[16]
+---@field imageId binary ImageID[16]
 ---@field vmpl integer VMPL (u32)
 ---@field sigAlgo YAXI.Attestation.Report.SigAlgo Signature algorithm (u32)
 ---@field currentTcb YAXI.Attestation.Report.TcbVersion Current TCB (8 bytes)
 ---@field platInfo YAXI.Attestation.Report.PlatformInfo Platform information (u64 bitfield)
 ---@field keyInfo YAXI.Attestation.Report.KeyInfo Key information (u32 bitfield)
----@field reportData string Guest-provided ReportData[64] (binary string)
----@field measurement string Measurement[48] (binary string) launch measurement
----@field hostData string HostData[32] (binary string)
----@field idKeyDigest string IDKeyDigest[48] (binary string, SHA-384 digest)
----@field authorKeyDigest string AuthorKeyDigest[48] (binary string, SHA-384 digest)
----@field reportId string ReportID[32] (binary string)
----@field reportIdMa string ReportID_MA[32] (binary string)
+---@field reportData binary Guest-provided ReportData[64]
+---@field measurement binary Measurement[48] launch measurement
+---@field hostData binary HostData[32]
+---@field idKeyDigest binary IDKeyDigest[48] (SHA-384 digest)
+---@field authorKeyDigest binary AuthorKeyDigest[48] (SHA-384 digest)
+---@field reportId binary ReportID[32]
+---@field reportIdMa binary ReportID_MA[32]
 ---@field reportedTcb YAXI.Attestation.Report.TcbVersion Reported TCB (8 bytes used to derive VCEK)
 ---@field cpuidFamId integer? CPUID Family ID (present in version >=3)
 ---@field cpuidModId integer? CPUID Model ID (present in version >=3)
 ---@field cpuidStep integer? CPUID Stepping (present in version >=3)
----@field chipId string ChipID[64] (binary string)
+---@field chipId binary ChipID[64]
 ---@field committedTcb YAXI.Attestation.Report.TcbVersion Committed TCB (8 bytes)
 ---@field current YAXI.Attestation.Report.Version CurrentVersion (3 bytes)
 ---@field committed YAXI.Attestation.Report.Version CommittedVersion (3 bytes)
 ---@field launchTcb YAXI.Attestation.Report.TcbVersion LaunchTCB (8 bytes)
 ---@field launchMitVector integer? LaunchMitVector (u64, version >=5)
 ---@field currentMitVector integer? CurrentMitVector (u64, version >=5)
----@field signature string Signature[512] (binary string)
----@field _signaturePayload string Internal: bytes 0x00..0x29f (binary string, used for signing)
+---@field signature binary Signature[512]
+---@field _signaturePayload binary Internal: bytes 0x00..0x29f (used for signing)
 local AttestationReport = {}
 AttestationReport.__index = AttestationReport
 
@@ -117,16 +117,18 @@ local Offsets = {
     committed_minor = 0x1ED,
     committed_major = 0x1EE,
     launchTcb = 0x1F0,
-    signature = 0x2A0
+    signature = 0x2A0,
   },
   v3 = { cpuidFamId = 0x188, cpuidModId = 0x189, cpuidStep = 0x18A },
-  v5 = { launchMitVector = 0x1F8, currentMitVector = 0x200 }
+  v5 = { launchMitVector = 0x1F8, currentMitVector = 0x200 },
 }
 
 local SignatureLen = 0x200
 local ReportLen = Offsets.base.signature + SignatureLen
 
-local function off(pos) return pos + 1 end
+local function off(pos)
+  return pos + 1
+end
 
 local function parseError(field, offset, fname, msg, level)
   local s = ("Failed to parse %s at %s with %s"):format(field or "<unknown>", offset - 1, fname)
@@ -142,7 +144,7 @@ local function readU32Le(b, o, field)
   if not ok then
     parseError(field, o, "readU32Le", v, 3)
   end
-  return v
+  return v --[[@as integer]]
 end
 
 ---@return integer
@@ -154,7 +156,7 @@ local function readU8(b, o, field)
   return v --[[@as integer]]
 end
 
----@return string
+---@return binary
 local function readBytes(b, o, n, field)
   n = n or #b - o
   if o + n - 1 > #b then
@@ -165,29 +167,43 @@ end
 
 ---@return integer
 local function readU64Le(b, o, field)
-  local ok, v = pcall(string.unpack, "<I8", b, o, 3)
+  local ok, v = pcall(string.unpack, "<I8", b, o)
   if not ok then
     parseError(field, o, "readU64Le", v)
   end
-  return v
+  return v --[[@as integer]]
 end
 
 local function parseTcbVersion(bytes, offset, productName, field)
   local raw8 = readBytes(bytes, offset, 8, field)
+  ---@diagnostic disable: undefined-field
   local b = { raw8:byte(1, 8) }
   local t = {}
   t.microcode = b[8]
   if productName == "Genoa" or productName == "Milan" then
-    t.snp = b[7]; t.tee = b[2]; t.bootloader = b[1]; t.fmc = nil
+    t.snp = b[7]
+    t.tee = b[2]
+    t.bootloader = b[1]
+    t.fmc = nil
   elseif productName == "Turin" then
-    t.snp = b[4]; t.tee = b[3]; t.bootloader = b[2]; t.fmc = b[1]
+    t.snp = b[4]
+    t.tee = b[3]
+    t.bootloader = b[2]
+    t.fmc = b[1]
   else
     if b[7] ~= 0 then
-      t.snp = b[7]; t.tee = b[2]; t.bootloader = b[1]; t.fmc = nil
+      t.snp = b[7]
+      t.tee = b[2]
+      t.bootloader = b[1]
+      t.fmc = nil
     else
-      t.snp = b[4]; t.tee = b[3]; t.bootloader = b[2]; t.fmc = b[1]
+      t.snp = b[4]
+      t.tee = b[3]
+      t.bootloader = b[2]
+      t.fmc = b[1]
     end
   end
+  ---@diagnostic enable: undefined-field
   return t
 end
 
@@ -209,7 +225,7 @@ local function parseGuestPolicy(bytes)
     memAes256Xts = ((v >> 22) & 1) ~= 0,
     raplDis = ((v >> 23) & 1) ~= 0,
     ciphertextHiding = ((v >> 24) & 1) ~= 0,
-    pageSwapDisabled = ((v >> 25) & 1) ~= 0
+    pageSwapDisabled = ((v >> 25) & 1) ~= 0,
   }
 end
 
@@ -227,7 +243,7 @@ local function parsePlatformInfo(bytes)
     raplDisabled = ((v >> 3) & 1) ~= 0,
     ciphertextHidingEnabled = ((v >> 4) & 1) ~= 0,
     aliasCheckComplete = ((v >> 5) & 1) ~= 0,
-    tioEnabled = ((v >> 7) & 1) ~= 0
+    tioEnabled = ((v >> 7) & 1) ~= 0,
   }
 end
 
@@ -241,7 +257,7 @@ local function parseKeyInfo(bytes)
   return {
     authorKeyEn = ((v >> 0) & 1) ~= 0,
     maskChipKey = ((v >> 1) & 1) ~= 0,
-    signingKey = (v >> 2) & 0x7
+    signingKey = (v >> 2) & 0x7,
   }
 end
 
@@ -250,16 +266,21 @@ local function parseVersion(build, minor, major)
 end
 
 ---Parse signature
----@param bytes string
+---@param bytes binary
 ---@param sigAlgo YAXI.Attestation.Report.SigAlgo
----@return string
+---@return binary
 local function parseSignature(bytes, sigAlgo)
   local offset, field = off(Offsets.base.signature), "SIGNATURE"
   local signatureBytes = readBytes(bytes, offset, SignatureLen, field)
   if sigAlgo == SignatureAlgorithm.ecdsaP384WithSha384 then
     -- Convert the signature bytes into a raw, uncompressed ECDSA signature (without the SEC1 prefix)
     if #signatureBytes ~= SignatureLen then
-      parseError(field, offset, "parseSignature", ("Expected signature length of %s, got %s"):format(SignatureLen, #signatureBytes))
+      parseError(
+        field,
+        offset,
+        "parseSignature",
+        ("Expected signature length of %s, got %s"):format(SignatureLen, #signatureBytes)
+      )
     end
     -- Offset 0x00: R component of this signature. Value is zero-extended little-endian encoded.
     local r = signatureBytes:sub(0x00 + 1, 48)
@@ -274,12 +295,12 @@ local function parseSignature(bytes, sigAlgo)
   return "" -- unreachable
 end
 
----@param bytes string
+---@param bytes binary
 ---@param productName "Milan"|"Genoa"|"Turin"
 ---@return YAXI.Attestation.Report?,string?
 function AttestationReport:new(bytes, productName)
   if #bytes ~= ReportLen then
-    return error(("Expected exactly %s bytes, got: %s bytes"):format(ReportLen, #bytes))
+    error(("Expected exactly %s bytes, got: %s bytes"):format(ReportLen, #bytes))
   end
   local o = setmetatable({}, self)
   o._signaturePayload = readBytes(bytes, off(Offsets.base.version), Offsets.base.signature, "_signaturePayload")
@@ -337,7 +358,9 @@ function AttestationReport:summary()
   return util.propsToMsg(shallowCopy)
 end
 
-AttestationReport.__tostring = function (self) return self:summary() end
+AttestationReport.__tostring = function(self)
+  return self:summary()
+end
 
 return {
   AttestationReport = AttestationReport,

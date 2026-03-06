@@ -2,12 +2,12 @@
 -- Author: Vincent Haupert <vincent.haupert@yaxi.tech>
 
 -- Logging setup
-local log = require("routex-client.logging").defaultLogger() or
-  error("Failed to get default logger. Did you initialize it?")
+local log = require("routex-client.logging").defaultLogger()
+  or error("Failed to get default logger. Did you initialize it?")
 
-local uuid = require("routex-client.util.uuid")
-local util = require("routex-client.util")
 local dateutil = require("routex-client.util.date")
+local util = require("routex-client.util")
+local uuid = require("routex-client.util.uuid")
 local super = util.super
 local class = util.class
 
@@ -38,8 +38,8 @@ local ServiceBlockedCode = errors.ServiceBlockedCode
 local TicketErrorCode = errors.TicketErrorCode
 local UnsupportedProductReason = errors.UnsupportedProductReason
 
-local base64 = require("routex-client.util.base64")
 local KeySettlement = require("routex-client.settlement")
+local base64 = require("routex-client.util.base64")
 local http = require("routex-client.http")
 
 local jsonDecode = require("routex-client.vendor.json").decode
@@ -50,8 +50,8 @@ local base64Decode = require("routex-client.util.base64").decode
 
 local jwt = require("routex-client.jwt")
 
-local VERSION = "0.1.0"
-local USER_AGENT = ("RoutexClient/%s (Lua)"):format(VERSION)
+local _VERSION = "0.1.0"
+local USER_AGENT = ("RoutexClient/%s (Lua)"):format(_VERSION)
 
 -- routex expects `null` instead of omitting entries entirely
 ---@alias YAXI.RoutexClient.NULL_MARKER "____NULL_MARKER____"
@@ -219,12 +219,17 @@ local ChargeBearer = {
 ---@class YAXI.RoutexClient.TransferOptions.Details.CreditorAccount
 ---@field iban string
 
+---@class YAXI.RoutexClient.TransferOptions.Details.CreditorAddress
+---@field townName string
+---@field country string ISO 3166-1 alpha-2 country code.
+
 ---@class YAXI.RoutexClient.TransferOptions.Details
 ---@field endToEndIdentification string?
 ---@field amount YAXI.RoutexClient.TransferOptions.Details.Amount
 ---@field creditorAccount YAXI.RoutexClient.TransferOptions.Details.CreditorAccount
 ---@field creditorAgentBic string?
 ---@field creditorName string
+---@field creditorAddress YAXI.RoutexClient.TransferOptions.Details.CreditorAddress?
 ---@field remittance string?
 ---@field chargeBearer YAXI.RoutexClient.ChargeBearer?
 
@@ -280,14 +285,14 @@ local DialogContext = {
   VopConfirmation = "VopConfirmation",
 
   ---Pending Verification of Payee check.
-  ---A [`Confirmation`](lua://YAXI.RoutexClient.Dialog.Input.Confirmation) gets returned with this context when a Verification of Payee check for a bulk payment is still pending.
+  ---A [`Confirmation`](lua://YAXI.RoutexClient.Dialog.Input.Confirmation) gets returned with this context when a Verification of Payee check is still pending.
   VopCheck = "VopCheck",
 }
 
 ---@class YAXI.RoutexClient.Dialog.Image
 ---@field mimeType string
----@field data binary Binary data in the format defined by mimeType
----@field hhdUcData binary? HHD_UC data block
+---@field data binary Binary data in the format defined by mimeType.
+---@field hhdUcData binary? HHD_UC data block. In cases where the ASPSP provides HHD_UC data for optical coupling with a HandHeld-Device for the generation of an OTP, especially for an HHD_OPT animated graphic, the raw HHD_UC data stream is provided here. `data` provides a pre-rendered animated GIF to be presented with a width of 62.5 mm.
 
 ---Just a primary action to confirm the dialog.
 ---@class YAXI.RoutexClient.Dialog.Input.Confirmation: YAXI.ClassBase
@@ -297,11 +302,11 @@ local Confirmation = class()
 
 ---Create a new instance
 ---@param context binary
+---@param pollingDelaySecs number?
 ---@return YAXI.RoutexClient.Dialog.Input.Confirmation
 function Confirmation:new(context, pollingDelaySecs)
   ---@type YAXI.RoutexClient.Dialog.Input.Confirmation
   local obj = setmetatable({}, self)
-  setmetatable(obj, self)
   obj.context = context
   obj.pollingDelaySecs = pollingDelaySecs
   return obj
@@ -325,7 +330,6 @@ local Selection = class()
 function Selection:new(options, context)
   ---@type YAXI.RoutexClient.Dialog.Input.Selection
   local obj = setmetatable({}, self)
-  setmetatable(obj, self)
   obj.options = options
   obj.context = context
   return obj
@@ -370,7 +374,6 @@ local Field = class()
 function Field:new(type, secrecyLevel, context, minLength, maxLength)
   ---@type YAXI.RoutexClient.Dialog.Input.Field
   local obj = setmetatable({}, self)
-  setmetatable(obj, self)
   obj.type = type
   obj.secrecyLevel = secrecyLevel
   obj.context = context
@@ -402,6 +405,12 @@ function OBResponse:toJSON()
   return self._json
 end
 
+---User dialog.
+---
+---This is meant to be displayed as a dialog in some User Interface and consists of:
+--- - A way to cancel the dialog (typically an X symbol and / or a "Cancel" button).
+--- - The display part: the `message` and an optional `image`.
+--- - The interactive part defined by `input`.
 ---@class YAXI.RoutexClient.Dialog: YAXI.RoutexClient.OBResponse
 ---@field input YAXI.RoutexClient.Dialog.Input.Confirmation | YAXI.RoutexClient.Dialog.Input.Selection | YAXI.RoutexClient.Dialog.Input.Field | nil
 ---@field context YAXI.RoutexClient.DialogContext?
@@ -441,22 +450,22 @@ function Dialog:new(json)
     obj.image = {
       mimeType = json.Dialog.image.mimeType,
       data = base64Decode(json.Dialog.image.data) or error("Could not Base64-decode Dialog.image.data"),
-      hhdUcData = json.Dialog.image.hhdUcData and
-        (base64Decode(json.Dialog.image.hhdUcData) or error("Could not Base64-decode Dialog.image.hhdUcData"))
+      hhdUcData = json.Dialog.image.hhdUcData
+        and (base64Decode(json.Dialog.image.hhdUcData) or error("Could not Base64-decode Dialog.image.hhdUcData")),
     }
   end
 
-  if json.Dialog.input.Confirmation then
+  if json.Dialog.input.Confirmation then ---@diagnostic disable-line: unnecessary-if
     local context = base64Decode(json.Dialog.input.Confirmation.context)
       or error("Could not Base64-decode json.Dialog.input.Confirmation.context")
     local pollingDelaySecs = json.Dialog.input.Confirmation.pollingDelaySecs
     obj.input = Confirmation:new(context, pollingDelaySecs)
-  elseif json.Dialog.input.Selection then
+  elseif json.Dialog.input.Selection then ---@diagnostic disable-line: unnecessary-if
     local options = json.Dialog.input.Selection.options
     local context = base64Decode(json.Dialog.input.Selection.context)
       or error("Could not Base64-decode json.Dialog.input.Selection.context")
     obj.input = Selection:new(options, context)
-  elseif json.Dialog.input.Field then
+  elseif json.Dialog.input.Field then ---@diagnostic disable-line: unnecessary-if
     ---@type YAXI.RoutexClient.InputType
     local type
     ---@type YAXI.RoutexClient.SecrecyLevel
@@ -494,10 +503,10 @@ function Dialog:new(json)
       error(string.format("Unexpected Dialog.input.Field.secrecyLevel: %s", inputField.secrecyLevel))
     end
 
-    minLength = json.Dialog.input.Field.minLength;
-    maxLength = json.Dialog.input.Field.maxLength;
-    context = base64Decode(json.Dialog.input.Field.context) or
-      error("Could not Base64-decode json.Dialog.input.Field.context");
+    minLength = json.Dialog.input.Field.minLength
+    maxLength = json.Dialog.input.Field.maxLength
+    context = base64Decode(json.Dialog.input.Field.context)
+      or error("Could not Base64-decode json.Dialog.input.Field.context")
 
     obj.input = Field:new(type, secrecyLevel, context, minLength, maxLength)
   end
@@ -537,8 +546,7 @@ function Redirect:new(json)
   setmetatable(obj, self)
 
   obj.url = json.Redirect.url
-  obj.context = base64Decode(json.Redirect.context)
-    or error("Could not Base64-decode json.Redirect.context")
+  obj.context = base64Decode(json.Redirect.context) or error("Could not Base64-decode json.Redirect.context")
 
   return obj
 end
@@ -576,8 +584,7 @@ function RedirectHandle:new(json)
   setmetatable(obj, self)
 
   obj.handle = json.RedirectHandle.handle
-  obj.context = base64Decode(json.RedirectHandle.context)
-    or error("Could not Base64-decode json.Redirect.context")
+  obj.context = base64Decode(json.RedirectHandle.context) or error("Could not Base64-decode json.Redirect.context")
 
   return obj
 end
@@ -621,8 +628,8 @@ function Result:new(json)
 
   obj.jwt = json.Result[1]
   obj.session = json.Result[2] and (base64Decode(json.Result[2]) or error("Could not Base64-decode Result session"))
-  obj.connectionData = json.Result[3] and
-    (base64Decode(json.Result[3]) or error("Could not Base64-decode Result connection data"))
+  obj.connectionData = json.Result[3]
+    and (base64Decode(json.Result[3]) or error("Could not Base64-decode Result connection data"))
 
   return obj
 end
@@ -653,7 +660,7 @@ function OBResponse.fromJSON(json)
     return Result:fromJSON(resultJSON)
   else
     log:error(json)
-    error(string.format("Unexpected json: %s", json))
+    error(string.format("Unexpected json: %s", jsonEncode(json)))
   end
 end
 
@@ -673,18 +680,13 @@ end
 ---@param ticket string A YAXI service ticket
 ---@return string
 local function getTicketID(ticket)
-  local claims = jwt.decode(
-    ticket,
-    nil,
-    nil,
-    {
-      verifySignature = false,
-      verifyExp = false
-    }
-  )
+  local claims = jwt.decode(ticket, nil, nil, {
+    verifySignature = false,
+    verifyExp = false,
+  })
 
   local ticketId = claims and claims.data and claims.data.id
-    or UnexpectedError:new("The ticket doesn't have a `data.id` claim")
+    or error(UnexpectedError:new("The ticket doesn't have a `data.id` claim"))
 
   return ticketId --[[@as string]]
 end
@@ -698,7 +700,7 @@ end
 ---@field private _traceId binary
 ---@field private _redirectUri string?
 local RoutexClient = class({
-  MEDIA_TYPE = "application/vnd.yaxi.v5"
+  MEDIA_TYPE = "application/vnd.yaxi.v5",
 })
 
 ---Create a new instance.
@@ -730,7 +732,7 @@ function RoutexClient:sealedRequest(request)
   -- Retrieve the settlement session ID, establishing a new session if necessary
   local ok, response = pcall(self._settlement.getBase64SessionId, self._settlement, settlementHeaders)
   if ok then
-    request.headers["yaxi-session-id"] = response
+    request.headers["yaxi-session-id"] = response --[[@as string]]
   else
     local err = type(response) == "table" and response
       or UnexpectedError:new(string.format("Key settlement failed: %s", response))
@@ -738,11 +740,11 @@ function RoutexClient:sealedRequest(request)
   end
 
   -- If the `yaxi-ticket-id` header is set, encrypt the `yaxi-ticket` header value
-  if request.headers["yaxi-ticket-id"] and request.headers["yaxi-ticket"] then
+  if request.headers["yaxi-ticket-id"] and request.headers["yaxi-ticket"] then ---@diagnostic disable-line: unnecessary-if
     local ticket = request.headers["yaxi-ticket"] --[[@as string]]
     local ticketSealed = self._settlement:seal(ticket, settlementHeaders)
-    local ticketSealedB64 = base64.encode(ticketSealed) or
-      error(UnexpectedError:new("Failed to Base64-encode sealed ticket"))
+    local ticketSealedB64 = base64.encode(ticketSealed)
+      or error(UnexpectedError:new("Failed to Base64-encode sealed ticket"))
     request.headers["yaxi-ticket"] = ticketSealedB64
   end
 
@@ -753,14 +755,13 @@ function RoutexClient:sealedRequest(request)
   end
 
   ---@diagnostic disable-next-line: redefined-local
-  local response = self._httpClient:request(request) or
-    error(UnexpectedError:new("Sending request failed"))
+  local response = self._httpClient:request(request) or error(UnexpectedError:new("Sending request failed"))
 
   -- Unseal response body
   local responseUnsealed
   if response.status >= 400 then
     responseUnsealed = self:_unsealBody(response, true)
-    self._handleResponse(responseUnsealed)
+    RoutexClient._handleResponse(responseUnsealed)
     log:error("Unhandled error response, raising UnexpectedError")
     error(UnexpectedError:new(responseUnsealed.body))
   else
@@ -772,8 +773,7 @@ function RoutexClient:sealedRequest(request)
   local traceId
   if response.headers["yaxi-trace-id"] then
     local traceIdSealedB64 = response.headers["yaxi-trace-id"]
-    local traceIdSealed = base64Decode(traceIdSealedB64)
-      or error("Could not Base64-decode the sealed trace ID header")
+    local traceIdSealed = base64Decode(traceIdSealedB64) or error("Could not Base64-decode the sealed trace ID header")
     traceId = self._settlement:unseal(traceIdSealed)
   end
 
@@ -815,7 +815,7 @@ function RoutexClient:_sendRequest(request)
   if traceId then
     self._traceId = traceId
     local traceIdB64 = traceId and base64Encode(self._traceId)
-      or error(UnexpectedError("Could not Base64-encode trace ID"))
+      or error(UnexpectedError:new("Could not Base64-encode trace ID"))
     log:debug("yaxi-trace-id: %s", traceIdB64)
   end
 
@@ -828,9 +828,7 @@ end
 ---@param data table<string, any>|string|nil Data to encode and send as JSON body
 ---@return YAXI.Http.Response
 function RoutexClient:_request(ticket, path, data)
-  local request = self
-    :_buildRequest(ticket, path, data)
-    :build()
+  local request = self:_buildRequest(ticket, path, data):build()
   return self:_sendRequest(request)
 end
 
@@ -845,7 +843,7 @@ function RoutexClient:_unsealBody(response, fallback)
     return response
   end
 
-  local ok, unsealed = pcall(function ()
+  local ok, unsealed = pcall(function()
     return self._settlement:unseal(response.body)
   end)
 
@@ -866,7 +864,7 @@ function RoutexClient:_respond(servicePath, options)
     context = base64Encode(options.context),
     response = options.response,
   })
-  return self:_readOBResponse(json)
+  return RoutexClient._readOBResponse(json)
 end
 
 ---@private
@@ -877,7 +875,7 @@ function RoutexClient:_confirm(servicePath, options)
   local json = self:_request(options.ticket, string.format("%s/confirmation", servicePath), {
     context = base64Encode(options.context),
   })
-  return self:_readOBResponse(json)
+  return RoutexClient._readOBResponse(json)
 end
 
 ---Decode the response and raises an [`Error`](lua://RoutexClient.Error) if necessary
@@ -890,7 +888,7 @@ function RoutexClient._handleResponse(response)
   ---@type YAXI.RoutexClient.Error?
   local err = nil
 
-
+  ---@diagnostic disable: need-check-nil, undefined-field, unnecessary-if
   if not ok then
     -- JSON decoding failed
     data = data --[[@as string]]
@@ -904,10 +902,7 @@ function RoutexClient._handleResponse(response)
     elseif data.InvalidCredentials then
       err = InvalidCredentialsError:new(data.InvalidCredentials.userMessage)
     elseif data.ServiceBlocked then
-      err = ServiceBlockedError:new(
-        data.ServiceBlocked.code,
-        data.ServiceBlocked.userMessage
-      )
+      err = ServiceBlockedError:new(data.ServiceBlocked.code, data.ServiceBlocked.userMessage)
     elseif data.Unauthorized then
       err = UnauthorizedError:new(data.Unauthorized.userMessage)
     elseif data.ConsentExpired then
@@ -917,15 +912,9 @@ function RoutexClient._handleResponse(response)
     elseif data.PeriodOutOfBounds then
       err = PeriodOutOfBoundsError:new(data.PeriodOutOfBounds.userMessage)
     elseif data.UnsupportedProduct then
-      err = UnsupportedProductError:new(
-        data.UnsupportedProduct.reason,
-        data.UnsupportedProduct.userMessage
-      )
+      err = UnsupportedProductError:new(data.UnsupportedProduct.reason, data.UnsupportedProduct.userMessage)
     elseif data.PaymentFailed then
-      err = PaymentFailedError:new(
-        data.PaymentFailed.code,
-        data.PaymentFailed.userMessage
-      )
+      err = PaymentFailedError:new(data.PaymentFailed.code, data.PaymentFailed.userMessage)
     elseif data.UnexpectedValue then
       err = UnexpectedValueError:new(data.UnexpectedValue.error)
     elseif data.TicketError then
@@ -940,15 +929,9 @@ function RoutexClient._handleResponse(response)
         end
       end
 
-      err = TicketError:new(
-        data.TicketError.code,
-        msg
-      )
+      err = TicketError:new(data.TicketError.code, msg)
     elseif data.ProviderError then
-      err = ProviderError:new(
-        data.ProviderError.code,
-        data.ProviderError.userMessage
-      )
+      err = ProviderError:new(data.ProviderError.code, data.ProviderError.userMessage)
     end
   end
 
@@ -961,16 +944,17 @@ function RoutexClient._handleResponse(response)
     error(err)
   end
 
+  ---@diagnostic enable: need-check-nil, undefined-field, unnecessary-if
   return data --[[@as table<string, any>]]
 end
 
 ---@private
 ---@param response YAXI.Http.Response
 ---@return YAXI.RoutexClient.OBResponse
-function RoutexClient:_readOBResponse(response)
-  local json = self._handleResponse(response)
+function RoutexClient._readOBResponse(response)
+  local json = RoutexClient._handleResponse(response)
 
-  local ok, resOrErr = pcall(OBResponse.fromJSON, json)
+  local ok, resOrErr = pcall(OBResponse.fromJSON, json --[[@as YAXI.RoutexClient.OBResponseJSON]])
   if ok then
     local res = resOrErr --[[@as YAXI.RoutexClient.OBResponse]]
     return res
@@ -980,6 +964,12 @@ function RoutexClient:_readOBResponse(response)
   end
 end
 
+---System version for the currently established session.
+---@return YAXI.KeySettlement.SettlementResponse.SystemVersion?
+function RoutexClient:systemVersion()
+  return self._settlement:systemVersion()
+end
+
 --#region RoutexClient:search() / RoutexClient:info()
 
 ---
@@ -987,7 +977,7 @@ end
 ---
 ---@class YAXI.RoutexClient.ConnectionInfo.CredentialsModel
 ---@field full boolean A full set of credentials may be provided to support fully embedded authentication (including scraped redirects).
----@field userId boolean Only a user identifier without a password may be provided. This is typically the case for decoupled authentication where the user e.g. authorizes access in a mobile application.
+---@field userId boolean Only a user identifier without a password may be provided. This is typically the case for decoupled authentication where the user e.g. authorizes access in a mobile application. Note that if password-less authentication fails (e.g. as no device for decoupled authentication is set up for the user and a redirect is not supported), an error is returned and the transaction has to get restarted with a full set of credentials.
 ---@field none boolean Credentials are not required. The user will provide them to the service provider during a redirect.
 
 ---
@@ -1001,7 +991,16 @@ end
 ---@field userId? string Human-friendly label for the user identifier if relevant.
 ---@field password? string Human-friendly label for the PIN / password if relevant.
 ---@field advice? string Advice for the credentials to be displayed.
----@field logoId? string Logo identifier.
+---@field logoId string Logo identifier.
+
+---Type of connections to consider when searching.
+---@enum YAXI.RoutexClient.ConnectionType
+local ConnectionType = {
+  --- Production connections.
+  Production = "Production",
+  --- Sandbox connections, especially test systems provided by third-parties.
+  Sandboxes = "Sandboxes",
+}
 
 ---
 --- Filters for the connection lookup
@@ -1009,6 +1008,7 @@ end
 --- String filters look for the given value anywhere in the related field, case-insensitive.
 ---
 ---@alias YAXI.RoutexClient.SearchFilter
+---| { types: YAXI.RoutexClient.ConnectionType[] } List of connection types to consider.
 ---| { countries: string[] } List of ISO 3166-1 alpha-2 country codes to consider.
 ---| { name: string } String filter for the provider / product name or any alias.
 ---| { bic: string } String filter for the BIC.
@@ -1026,15 +1026,11 @@ end
 ---@param options YAXI.RoutexClient.SearchOptions
 ---@return YAXI.RoutexClient.ConnectionInfo[]
 function RoutexClient:search(options)
-  local reqBuilder = self:_buildRequest(
-    options.ticket,
-    "search",
-    {
-      ibanDetection = options.ibanDetection or false,
-      filters = options.filters,
-      limit = options.limit,
-    }
-  )
+  local reqBuilder = self:_buildRequest(options.ticket, "search", {
+    ibanDetection = options.ibanDetection or false,
+    filters = options.filters,
+    limit = options.limit,
+  })
 
   local usePublicSearch = options.ticket == nil
   if usePublicSearch then
@@ -1043,7 +1039,7 @@ function RoutexClient:search(options)
 
   local response = self:_sendRequest(reqBuilder:build())
 
-  local infos = self._handleResponse(response)
+  local infos = RoutexClient._handleResponse(response) --[[@as YAXI.RoutexClient.ConnectionInfo[] ]]
   return infos
 end
 
@@ -1053,12 +1049,8 @@ end
 ---@param options YAXI.RoutexClient.InfoOptions
 ---@return YAXI.RoutexClient.ConnectionInfo
 function RoutexClient:info(options)
-  local response = self:_request(
-    options.ticket,
-    string.format("info/%s", options.connectionId),
-    nil
-  )
-  local info = self._handleResponse(response)
+  local response = self:_request(options.ticket, string.format("info/%s", options.connectionId), nil)
+  local info = RoutexClient._handleResponse(response) --[[@as YAXI.RoutexClient.ConnectionInfo]]
   return info
 end
 
@@ -1066,7 +1058,7 @@ end
 
 --#region RoutexClient:accounts()
 
----@class YAXI.RoutexClient.AccountType
+---@enum YAXI.RoutexClient.AccountType
 local AccountType = {
   --- Account used to post debits and credits.
   --- ISO 20022 ExternalCashAccountType1Code CACC.
@@ -1123,16 +1115,14 @@ end
 function RoutexClient:_mapFilter(filter)
   if filter.eq then
     ---@cast filter YAXI.RoutexClient.AccountFilter.Eq
-    ---@type YAXI.RoutexClient.AccountFilterJSON.CompOps
     return {
       Eq = self._mapFieldFilter(filter.eq),
-    }
+    } --[[@as YAXI.RoutexClient.AccountFilterJSON]]
   elseif filter.notEq then
     ---@cast filter YAXI.RoutexClient.AccountFilter.NotEq
-    ---@type YAXI.RoutexClient.AccountFilterJSON.CompOps
     return {
-      NotEq = self._mapFieldFilter(filter.notEq)
-    }
+      NotEq = self._mapFieldFilter(filter.notEq),
+    } --[[@as YAXI.RoutexClient.AccountFilterJSON]]
   elseif filter.all then
     if #filter.all == 0 then
       local tautology = { any = { { eq = { AccountField.Iban } }, { notEq = { AccountField.Iban } } } }
@@ -1148,14 +1138,13 @@ function RoutexClient:_mapFilter(filter)
       ---@cast filter YAXI.RoutexClient.AccountFilter
       other = filter.all[2]
     end
-    ---@type YAXI.RoutexClient.AccountFilterJSON.LogicOps.And
     return {
       And = {
-        self:_mapFilter(filter.all[1]),
-        self:_mapFilter(other)
-      }
-    }
-  elseif filter.any then
+        self:_mapFilter(filter.all[1] --[[@as YAXI.RoutexClient.AccountFilter]]),
+        self:_mapFilter(other --[[@as YAXI.RoutexClient.AccountFilter]]),
+      },
+    } --[[@as YAXI.RoutexClient.AccountFilterJSON]]
+  elseif filter.any then ---@diagnostic disable-line: unnecessary-if
     ---@cast filter YAXI.RoutexClient.AccountFilter.Any
     if #filter.any == 0 then
       local contradiction = { all = { { eq = { AccountField.Iban } }, { notEq = { AccountField.Iban } } } }
@@ -1171,19 +1160,17 @@ function RoutexClient:_mapFilter(filter)
       ---@type YAXI.RoutexClient.AccountFilter.Any
       other = filter.any[2]
     end
-    ---@type YAXI.RoutexClient.AccountFilterJSON.LogicOps.Or
     return {
       Or = {
-        self:_mapFilter(filter.any[1]),
-        self:_mapFilter(other)
-      }
-    }
+        self:_mapFilter(filter.any[1] --[[@as YAXI.RoutexClient.AccountFilter]]),
+        self:_mapFilter(other --[[@as YAXI.RoutexClient.AccountFilter]]),
+      },
+    } --[[@as YAXI.RoutexClient.AccountFilterJSON]]
   elseif filter.supports then
     ---@cast filter YAXI.RoutexClient.AccountFilter.Supports
-    ---@type YAXI.RoutexClient.AccountFilterJSON.CompOps
     return {
-      Supports = filter.supports
-    };
+      Supports = filter.supports,
+    } --[[@as YAXI.RoutexClient.AccountFilterJSON]]
   end
 
   error(string.format("Unknown filter: %s", jsonEncode(filter)))
@@ -1199,23 +1186,14 @@ function RoutexClient:accounts(options)
     table.insert(fields, field)
   end
 
-  local data = self._prepareData(
-    options.credentials,
-    options.session,
-    options.recurringConsents,
-    {
-      fields = fields,
-      filter = options.filter and self:_mapFilter(options.filter) or nil
-    }
-  )
+  local data = self._prepareData(options.credentials, options.session, options.recurringConsents, {
+    fields = fields,
+    filter = options.filter and self:_mapFilter(options.filter) or nil,
+  })
 
-  local response = self:_request(
-    options.ticket,
-    "accounts/service",
-    data
-  )
+  local response = self:_request(options.ticket, "accounts/service", data)
 
-  return self:_readOBResponse(response)
+  return RoutexClient._readOBResponse(response)
 end
 
 ---Respond to a [`Dialog`](lua://YAXI.RoutexClient.Dialog) returned while fetching accounts
@@ -1240,20 +1218,11 @@ end
 ---@param options YAXI.RoutexClient.BalancesOptions
 ---@return YAXI.RoutexClient.OBResponse
 function RoutexClient:balances(options)
-  local data = self._prepareData(
-    options.credentials,
-    options.session,
-    options.recurringConsents,
-    {
-      accounts = options.accounts
-    }
-  )
-  local response = self:_request(
-    options.ticket,
-    "balances/service",
-    data
-  )
-  return self:_readOBResponse(response)
+  local data = self._prepareData(options.credentials, options.session, options.recurringConsents, {
+    accounts = options.accounts,
+  })
+  local response = self:_request(options.ticket, "balances/service", data)
+  return RoutexClient._readOBResponse(response)
 end
 
 ---Respond to a [`Dialog`](lua://YAXI.RoutexClient.Dialog) returned while fetching balances
@@ -1278,18 +1247,9 @@ end
 ---@param options YAXI.RoutexClient.TransactionsOptions
 ---@return YAXI.RoutexClient.OBResponse
 function RoutexClient:transactions(options)
-  local data = self._prepareData(
-    options.credentials,
-    options.session,
-    options.recurringConsents,
-    {}
-  )
-  local response = self:_request(
-    options.ticket,
-    "transactions/service",
-    data
-  )
-  return self:_readOBResponse(response)
+  local data = self._prepareData(options.credentials, options.session, options.recurringConsents, {})
+  local response = self:_request(options.ticket, "transactions/service", data)
+  return RoutexClient._readOBResponse(response)
 end
 
 ---Respond to a [`Dialog`](lua://YAXI.RoutexClient.Dialog) returned while fetching transactions
@@ -1314,18 +1274,10 @@ end
 ---@param options YAXI.RoutexClient.CollectPaymentOptions
 ---@return YAXI.RoutexClient.OBResponse
 function RoutexClient:collectPayment(options)
-  local data = self._prepareData(
-    options.credentials,
-    options.session,
-    options.recurringConsents,
-    { account = options.account }
-  )
-  local response = self:_request(
-    options.ticket,
-    "collect-payment/service",
-    data
-  )
-  return self:_readOBResponse(response)
+  local data =
+    self._prepareData(options.credentials, options.session, options.recurringConsents, { account = options.account })
+  local response = self:_request(options.ticket, "collect-payment/service", data)
+  return RoutexClient._readOBResponse(response)
 end
 
 ---Respond to a [`Dialog`](lua://YAXI.RoutexClient.Dialog) returned while initiating the payment
@@ -1346,7 +1298,7 @@ end
 
 --#region RoutexClient:transfer()
 
----[Collect Payment service](https://docs.yaxi.tech/collect-payment.html)
+---[Transfer service](https://docs.yaxi.tech/transfer.html)
 ---@param options YAXI.RoutexClient.TransferOptions
 ---@return YAXI.RoutexClient.OBResponse
 function RoutexClient:transfer(options)
@@ -1360,24 +1312,15 @@ function RoutexClient:transfer(options)
     requestedExecutionDate = result
   end
 
-  local data = self._prepareData(
-    options.credentials,
-    options.session,
-    options.recurringConsents,
-    {
-      product = options.product,
-      debtorAccount = options.debtorAccount,
-      debtorName = options.debtorName,
-      requestedExecutionDate = requestedExecutionDate,
-      details = options.details,
-    }
-  )
-  local response = self:_request(
-    options.ticket,
-    "transfer/service",
-    data
-  )
-  return self:_readOBResponse(response)
+  local data = self._prepareData(options.credentials, options.session, options.recurringConsents, {
+    product = options.product,
+    debtorAccount = options.debtorAccount,
+    debtorName = options.debtorName,
+    requestedExecutionDate = requestedExecutionDate,
+    details = options.details,
+  })
+  local response = self:_request(options.ticket, "transfer/service", data)
+  return RoutexClient._readOBResponse(response)
 end
 
 ---Respond to a [`Dialog`](lua://YAXI.RoutexClient.Dialog) returned while initiating the transfer
@@ -1417,10 +1360,10 @@ function RoutexClient:trace(ticket, traceId)
   local traceIdSealedB64 = base64.encodeUrlsafe(traceIdSealed)
   local response = self:_request(ticket, string.format("traces/%s", traceIdSealedB64))
   if response.status >= 400 then
-    self._handleResponse(response)
+    RoutexClient._handleResponse(response)
     error(UnexpectedError:new(string.format("Failed to retrieve trace for ID %s", traceId)))
   end
-  return response.body
+  return response.body --[[@as string]]
 end
 
 --#endregion
@@ -1448,16 +1391,12 @@ end
 ---@param options YAXI.RoutexClient.RegisterRedirectOptions
 ---@return string
 function RoutexClient:registerRedirectUri(options)
-  local response = self:_request(
-    options.ticket,
-    "redirects",
-    {
-      handle = options.handle,
-      redirectUri = options.redirectUri,
-    }
-  )
+  local response = self:_request(options.ticket, "redirects", {
+    handle = options.handle,
+    redirectUri = options.redirectUri,
+  })
 
-  local json = self._handleResponse(response)
+  local json = RoutexClient._handleResponse(response)
   if not json.redirectUrl then
     local err = ResponseError:new("Expected `redirectUri` in response", response)
     error(err)
@@ -1508,6 +1447,8 @@ end
 --#endregion RoutexClient
 
 return {
+  _VERSION = _VERSION,
+
   -- Classes
   OBResponse = OBResponse,
   Confirmation = Confirmation,
@@ -1524,6 +1465,7 @@ return {
   AccountStatus = AccountStatus,
   AccountType = AccountType,
   ChargeBearer = ChargeBearer,
+  ConnectionType = ConnectionType,
   DialogContext = DialogContext,
   InputType = InputType,
   PaymentProduct = PaymentProduct,

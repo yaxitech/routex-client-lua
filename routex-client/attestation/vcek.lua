@@ -270,24 +270,19 @@ local VcekChains = {
       Em4Kl/cc4f+H6bEwhj1QKAN2ipRf+mP0NfzJb+6ZHNsOvyq/WByYpLXV9JJoiDW/
       8RZwPU/Mn7IuQBauCy78G7FS0ta3q1et74faYBBgeJ6awEasa25CvmsmlU0R
       -----END CERTIFICATE-----
-    ]])
-  }
+    ]]),
+  },
 }
 
 ---See Table 10 in AMD's [Versioned Chip Endorsement Key (VCEK) Certificate and KDS Interface Specification](
 ---https://www.amd.com/content/dam/amd/en/documents/epyc-technical-docs/specifications/57230.pdf)
 local function registerExtensionParsers()
   -- Add AMD SNP OIDs
-  oid.amdSnp = oid
-    .internet
-    .private(4)
-    .enterprise(1)
-    .amd(3704)
-    .snp(1)
+  oid.amdSnp = oid.internet.private(4).enterprise(1).amd(3704).snp(1)
   oid.amdSnp.structVersion(1)
   oid.amdSnp.productName(2)
   oid.amdSnp.tcbVersion(3).fmcSPL(9) --- structVersion=1
-  oid.amdSnp.tcbVersion(3).blSPL(1)  --- Boot Loader Security Patch Level
+  oid.amdSnp.tcbVersion(3).blSPL(1) --- Boot Loader Security Patch Level
   oid.amdSnp.tcbVersion(3).teeSPL(2) --- TEE/PSP Security Patch Level
   oid.amdSnp.tcbVersion(3).snpSPL(3) --- SNP Security Patch Level
   oid.amdSnp.tcbVersion(3).spl_4(4)
@@ -301,11 +296,13 @@ local function registerExtensionParsers()
 
   local function makeExtension(name, tag)
     return {
-      getName = function () return name end,
-      parse = function (_, parser, value)
+      getName = function()
+        return name
+      end,
+      parse = function(_, parser, value)
         local bits, err = parser:checkTag(value, tag)
         return bits and bits[1] or nil, err
-      end
+      end,
     }
   end
 
@@ -322,8 +319,12 @@ local function registerExtensionParsers()
   recognizedExtensions[oid.amdSnp.tcbVersion.snpSPL] = makeExtension("snpSPL", asn.asnTags.universal.integer)
   recognizedExtensions[oid.amdSnp.tcbVersion.ucodeSPL] = makeExtension("ucodeSPL", asn.asnTags.universal.integer)
   recognizedExtensions[oid.amdSnp.hwID] = {
-    getName = function () return "hwID" end,
-    parse = function (_, _, value) return value end,
+    getName = function()
+      return "hwID"
+    end,
+    parse = function(_, _, value)
+      return value
+    end,
     -- AMD thinks it's fine to skip the DER-encoding of the extnValue (which it isn't, according to RFC5280)
     nonDerEncodedValue = true,
   }
@@ -339,9 +340,12 @@ local function getVcekGeneration(productNameExtnValue)
     end
   end
 
-  error(("Failed to find a VCEK generation for productName %s, expected one of %s"):format(
-    base64.encode(productNameExtnValue), util.keys(VcekGeneration)
-  ))
+  error(
+    ("Failed to find a VCEK generation for productName %s, expected one of %s"):format(
+      base64.encode(productNameExtnValue),
+      util.keys(VcekGeneration)
+    )
+  )
 end
 
 ---@class YAXI.Attestation.Vcek.TcbVersion
@@ -376,8 +380,7 @@ end
 ---@protected
 function Vcek:_setExtensions()
   local function getExt(extnOid)
-    return self:getExtensionValue(extnOid) or
-      error(("Failed to get expected extension with OID %s"):format(extnOid))
+    return self:getExtensionValue(extnOid) or error(("Failed to get expected extension with OID %s"):format(extnOid))
   end
 
   self.structVersion = getExt(oid.amdSnp.structVersion) --[[@as integer]]

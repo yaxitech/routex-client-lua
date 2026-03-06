@@ -1,6 +1,11 @@
 -- SPDX-License-Identifier: MIT
 -- Author: Vincent Haupert <vincent.haupert@yaxi.tech>
 
+-- Note: The underlying ChaCha20-Poly1305 implementation is pure Lua.
+-- Constant-time tag comparison cannot be guaranteed at the Lua level.
+-- This is acceptable here because the sealed box construction uses
+-- ephemeral keys, making tag forgery attacks impractical.
+
 local Blake2b512 = require("routex-client.crypto.blake2b_512")
 local ChaCha20Poly1305 = require("routex-client.vendor.tls13.crypto.cipher.chacha20-poly1305").chacha20Poly1305
 local HKDF = require("routex-client.crypto.hkdf").HKDF
@@ -9,71 +14,70 @@ local util = require("routex-client.util")
 local x25519 = require("routex-client.crypto.x25519")
 
 ---Generate cipher
----@param recipient_public_key YAXI.Crypto.X25519PublicKey
----@param secret_key YAXI.Crypto.X25519PrivateKey
+---@param recipientPublicKey YAXI.Crypto.X25519PublicKey
+---@param secretKey YAXI.Crypto.X25519PrivateKey
 ---@param info binary
 ---@return table
-local function gen_cipher(recipient_public_key, secret_key, info)
-  local shared_secret = secret_key:exchange(recipient_public_key)
+local function genCipher(recipientPublicKey, secretKey, info)
+  local sharedSecret = secretKey:exchange(recipientPublicKey)
   local hmacBlake2b512 = hmac.hmac(Blake2b512)
-  local hkdf_blake2b = HKDF.new(hmacBlake2b512, 32, "", info)
-  assert(hkdf_blake2b ~= nil, "HKDF-Blake2b should be valid")
-  local shared_key = hkdf_blake2b:derive(shared_secret)
-  local cipher = ChaCha20Poly1305(shared_key)
+  local hkdfBlake2b = HKDF:new(hmacBlake2b512, 32, "", info)
+  assert(hkdfBlake2b, "HKDF-Blake2b should be valid")
+  local sharedKey = hkdfBlake2b:derive(sharedSecret)
+  local cipher = ChaCha20Poly1305(sharedKey)
   return cipher
 end
 
 ---Compose the nonce
----@param ephemeral_pk YAXI.Crypto.X25519PublicKey
----@param recipient_public_key YAXI.Crypto.X25519PublicKey
+---@param ephemeralPk YAXI.Crypto.X25519PublicKey
+---@param recipientPublicKey YAXI.Crypto.X25519PublicKey
 ---@return binary
-local function get_seal_nonce(ephemeral_pk, recipient_public_key)
-  local message = ephemeral_pk:public_bytes_raw() .. recipient_public_key:public_bytes_raw()
+local function getSealNonce(ephemeralPk, recipientPublicKey)
+  local message = ephemeralPk:publicBytesRaw() .. recipientPublicKey:publicBytesRaw()
   local res = Blake2b512:new(12):update(message):finish()
-  assert(res ~= nil, "Blake2b should produce a digest")
-  return res;
+  assert(res, "Blake2b should produce a digest")
+  return res
 end
 
 ---Compose the info
----@param ephemeral_pk YAXI.Crypto.X25519PublicKey
----@param recipient_public_key YAXI.Crypto.X25519PublicKey
+---@param ephemeralPk YAXI.Crypto.X25519PublicKey
+---@param recipientPublicKey YAXI.Crypto.X25519PublicKey
 ---@return binary
-local function get_info(ephemeral_pk, recipient_public_key)
-  return ephemeral_pk:public_bytes_raw() .. recipient_public_key:public_bytes_raw()
+local function getInfo(ephemeralPk, recipientPublicKey)
+  return ephemeralPk:publicBytesRaw() .. recipientPublicKey:publicBytesRaw()
 end
 
 ---Create a sealed box
----@param recipient_public_key YAXI.Crypto.X25519PublicKey
+---@param recipientPublicKey YAXI.Crypto.X25519PublicKey
 ---@param plaintext binary
 ---@return string
-local function seal(recipient_public_key, plaintext)
-  local ephemeral_secret_key = x25519.X25519PrivateKey.generate()
-  local ephemeral_public_key = ephemeral_secret_key:public_key()
-  local nonce = get_seal_nonce(ephemeral_public_key, recipient_public_key)
-  local cipher = gen_cipher(recipient_public_key, ephemeral_secret_key,
-    get_info(ephemeral_public_key, recipient_public_key))
+local function seal(recipientPublicKey, plaintext)
+  local ephemeralSecretKey = x25519.X25519PrivateKey.generate()
+  local ephemeralPublicKey = ephemeralSecretKey:publicKey()
+  local nonce = getSealNonce(ephemeralPublicKey, recipientPublicKey)
+  local cipher = genCipher(recipientPublicKey, ephemeralSecretKey, getInfo(ephemeralPublicKey, recipientPublicKey))
   local ciphertext = cipher:encrypt(plaintext, nonce, "")
-  local chacha_box = ephemeral_public_key:public_bytes_raw() .. ciphertext
-  return chacha_box
+  local chachaBox = ephemeralPublicKey:publicBytesRaw() .. ciphertext
+  return chachaBox
 end
 
 ---Unseal a sealed box
----@param secret_key YAXI.Crypto.X25519PrivateKey
----@param chacha_box binary
+---@param secretKey YAXI.Crypto.X25519PrivateKey
+---@param chachaBox binary
 ---@return binary
-local function unseal(secret_key, chacha_box)
-  assert(#chacha_box >= 32, "passed `chacha_box` has insufficient bytes")
-  local ephemeral_public_key = x25519.X25519PublicKey:from_public_bytes(string.sub(chacha_box, 1, 32))
-  local ciphertext = string.sub(chacha_box, 33)
-  local public_key = secret_key:public_key()
-  local nonce = get_seal_nonce(ephemeral_public_key, public_key)
-  local info = get_info(ephemeral_public_key, public_key)
-  local cipher = gen_cipher(ephemeral_public_key, secret_key, info)
+local function unseal(secretKey, chachaBox)
+  assert(#chachaBox >= 32, "passed `chachaBox` has insufficient bytes")
+  local ephemeralPublicKey = x25519.X25519PublicKey:fromPublicBytes(string.sub(chachaBox, 1, 32))
+  local ciphertext = string.sub(chachaBox, 33)
+  local publicKey = secretKey:publicKey()
+  local nonce = getSealNonce(ephemeralPublicKey, publicKey)
+  local info = getInfo(ephemeralPublicKey, publicKey)
+  local cipher = genCipher(ephemeralPublicKey, secretKey, info)
   local plaintext = cipher:decrypt(ciphertext, nonce, "")
   return plaintext
 end
 
----@class YAXI.Crypto.PublicKey
+---@class YAXI.Crypto.PublicKey: YAXI.ClassBase
 ---@field private _key YAXI.Crypto.X25519PublicKey
 ---@field private __index table
 local PublicKey = util.class()
@@ -81,9 +85,9 @@ local PublicKey = util.class()
 ---Create PublicKey from raw bytes
 ---@param data binary
 ---@return YAXI.Crypto.PublicKey
-function PublicKey:from_public_bytes(data)
+function PublicKey:fromPublicBytes(data)
   local obj = setmetatable({}, self)
-  obj._key = x25519.X25519PublicKey:from_public_bytes(data)
+  obj._key = x25519.X25519PublicKey:fromPublicBytes(data)
   return obj
 end
 
@@ -95,8 +99,8 @@ end
 
 ---Raw public bytes
 ---@return binary
-function PublicKey:public_bytes_raw()
-  return self._key:public_bytes_raw()
+function PublicKey:publicBytesRaw()
+  return self._key:publicBytesRaw()
 end
 
 ---Seal the given `plaintext` data
@@ -120,28 +124,28 @@ function SecretKey.generate()
   return self
 end
 
----Raw secrey key bytes
+---Raw secret key bytes
 ---@return binary
 function SecretKey:bytes()
-  return self._key:private_bytes_raw()
+  return self._key:privateBytesRaw()
 end
 
 ---Get the corresponding public key
 ---@return YAXI.Crypto.PublicKey
-function SecretKey:public_key()
-  return PublicKey:from_public_bytes(self._key:public_key():public_bytes_raw())
+function SecretKey:publicKey()
+  return PublicKey:fromPublicBytes(self._key:publicKey():publicBytesRaw())
 end
 
----Unseal the given `chacha_box`
----@param chacha_box binary
+---Unseal the given `chachaBox`
+---@param chachaBox binary
 ---@return binary
-function SecretKey:unseal(chacha_box)
-  return unseal(self._key, chacha_box)
+function SecretKey:unseal(chachaBox)
+  return unseal(self._key, chachaBox)
 end
 
 return {
   seal = seal,
   unseal = unseal,
   SecretKey = SecretKey,
-  PublicKey = PublicKey
+  PublicKey = PublicKey,
 }

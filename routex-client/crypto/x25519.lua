@@ -7,60 +7,62 @@ local curve25519 = require("routex-client.vendor.tls13.crypto.curve25519")
 local random = require("routex-client.crypto.random")
 
 ---@class YAXI.Crypto.X25519PublicKey
----@field private _raw_key string
+---@field private _rawKey binary
 ---@field private __index table
 local X25519PublicKey = {}
 X25519PublicKey.__index = X25519PublicKey
 
----Create [X25519PublicKey](lua://YAXI.YAXI.Crypto.X25519PublicKey) from bytes
----@param data string
+---Create [X25519PublicKey](lua://YAXI.Crypto.X25519PublicKey) from bytes
+---@param data binary
 ---@return YAXI.Crypto.X25519PublicKey
-function X25519PublicKey:from_public_bytes(data)
+function X25519PublicKey:fromPublicBytes(data)
   assert(#data == 32, "data must be 32 bytes")
   local obj = setmetatable({}, self)
-  obj._raw_key = data
+  obj._rawKey = data
   return obj
 end
 
 ---Get the raw public bytes
----@return string
-function X25519PublicKey:public_bytes_raw() return self._raw_key end
+---@return binary
+function X25519PublicKey:publicBytesRaw()
+  return self._rawKey
+end
 
 ---@class YAXI.Crypto.X25519PrivateKey
----@field private _raw_key string
+---@field private _rawKey binary
 local X25519PrivateKey = {}
 X25519PrivateKey.__index = X25519PrivateKey
 
----Create [X25519PrivateKey](lua://YAXI.YAXI.Crypto.X25519PrivateKey) from bytes
----@param data string
+---Create [X25519PrivateKey](lua://YAXI.Crypto.X25519PrivateKey) from bytes
+---@param data binary
 ---@return YAXI.Crypto.X25519PrivateKey
-function X25519PrivateKey.from_private_bytes(data)
+function X25519PrivateKey.fromPrivateBytes(data)
   assert(#data == 32, "data must be 32 bytes")
   local self = setmetatable({}, X25519PrivateKey)
-  self._raw_key = data
+  self._rawKey = data
   return self
 end
 
----Generate a [X25519PrivateKey](lua://YAXI.YAXI.Crypto.X25519PrivateKey) from random bytes
+---Generate a [X25519PrivateKey](lua://YAXI.Crypto.X25519PrivateKey) from random bytes
 ---@return YAXI.Crypto.X25519PrivateKey
 function X25519PrivateKey.generate()
   local secret = random.urandom(32)
-  return X25519PrivateKey.from_private_bytes(secret)
+  return X25519PrivateKey.fromPrivateBytes(secret)
 end
 
 ---Get public key
 ---@return YAXI.Crypto.X25519PublicKey
-function X25519PrivateKey:public_key()
-  local pk_raw = curve25519.x25519PublicKeyFromPrivate(self._raw_key)
-  return X25519PublicKey:from_public_bytes(pk_raw)
+function X25519PrivateKey:publicKey()
+  local pkRaw = curve25519.x25519PublicKeyFromPrivate(self._rawKey)
+  return X25519PublicKey:fromPublicBytes(pkRaw)
 end
 
 ---Exchange a shared key with a peer
----@param peer_public_key YAXI.Crypto.X25519PublicKey
----@return string
-function X25519PrivateKey:exchange(peer_public_key)
-  local sk = { private = self._raw_key }
-  local pk = { public = peer_public_key:public_bytes_raw() }
+---@param peerPublicKey YAXI.Crypto.X25519PublicKey
+---@return binary
+function X25519PrivateKey:exchange(peerPublicKey)
+  local sk = { private = self._rawKey }
+  local pk = { public = peerPublicKey:publicBytesRaw() }
   local sharedSecret, err = curve25519.deriveSharedSecret(sk, pk)
   if sharedSecret == nil then
     error(("Failed to exchange shared secret: %s"):format(err))
@@ -69,12 +71,12 @@ function X25519PrivateKey:exchange(peer_public_key)
 end
 
 ---Get the raw private bytes
----@return string
-function X25519PrivateKey:private_bytes_raw()
-  return self._raw_key
+---@return binary
+function X25519PrivateKey:privateBytesRaw()
+  return self._rawKey
 end
 
 return {
   X25519PublicKey = X25519PublicKey,
-  X25519PrivateKey = X25519PrivateKey
+  X25519PrivateKey = X25519PrivateKey,
 }

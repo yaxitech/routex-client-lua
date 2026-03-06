@@ -1,6 +1,8 @@
 -- SPDX-License-Identifier: MIT
 -- Author: Vincent Haupert <vincent.haupert@yaxi.tech>
 
+-- This file is not loaded at runtime; it provides LuaLS type definitions only.
+
 ---@alias binary string A binary string
 
 ---@class YAXI.RoutexClient.Result.Amount
@@ -24,17 +26,17 @@
 
 ---@class YAXI.RoutexClient.Result.Transaction
 ---Required
----@field amount YAXI.RoutexClient.Result.Amount Transaction amount billed to the account.
+---@field amount YAXI.RoutexClient.Result.Amount Transaction amount as billed to the account.
 ---@field status YAXI.RoutexClient.Result.Transaction.Status Transaction status.
 ---Optional
 ---@field accountServicerReference string? Unique reference assigned by the account servicer.
----@field additionalInformation string? Additional long text description.
+---@field additionalInformation string? Additional information attached to the transaction. This might be a proprietary, localized, human-readable long text corresponding to some machine-readable bank transaction code that is not directly provided by the bank.
 ---@field bankTransactionCodes YAXI.RoutexClient.Result.Transaction.BankTransactionCodes[]? Bank transaction codes.
 ---@field batch YAXI.RoutexClient.Result.Transaction.RequestBatch? Grouped transaction info.
 ---@field bookingDate string? Booking date (ASPSP's books), format: date.
----@field creditor YAXI.RoutexClient.Result.Transaction.Party? Creditor party details.
+---@field creditor YAXI.RoutexClient.Result.Transaction.Party? Creditor data. In case of reversals this refers to the initial transaction.
 ---@field creditorId string? SEPA creditor identifier.
----@field debtor YAXI.RoutexClient.Result.Transaction.Party? Debtor party details.
+---@field debtor YAXI.RoutexClient.Result.Transaction.Party? Debtor data. In case of reversals this refers to the initial transaction.
 ---@field endToEndId string? Unique end-to-end identifier assigned by the initiating party.
 ---@field entryReference string? Identifier used for delta requests.
 ---@field exchanges YAXI.RoutexClient.Result.Transaction.ExchangeRate[]? Exchange rates if applicable.
@@ -73,9 +75,9 @@
 ---@field transactions YAXI.RoutexClient.Result.Transaction[] List of transactions.
 
 ---@class YAXI.RoutexClient.Result.Transaction.ExchangeRate
----@field sourceCurrency string Source currency (ISO 4217).
----@field targetCurrency string? Target currency (ISO 4217).
----@field unitCurrency string? Unit currency (ISO 4217).
+---@field sourceCurrency string ISO 4217 Alpha 3 currency code of the source currency that gets converted.
+---@field targetCurrency string? ISO 4217 Alpha 3 currency code of the target currency that the source currency gets converted into.
+---@field unitCurrency string? ISO 4217 Alpha 3 currency code of the unit currency for the exchange rate.
 ---@field exchangeRate string Numeric exchange rate.
 
 ---@class YAXI.RoutexClient.Result.Transaction.Fee
@@ -84,10 +86,10 @@
 ---@field bic string? Agent's BIC (BICFIIdentifier).
 
 ---@class YAXI.RoutexClient.Result.Transaction.Party
----@field name string? Name of the party.
----@field iban string? IBAN.
----@field bic string? BIC.
----@field ultimate string? Ultimate party on whose behalf.
+---@field name string? Creditor / debtor name.
+---@field iban string? ISO 20022 IBAN2007Identifier for the creditor / debtor account.
+---@field bic string? ISO 20022 BICFIIdentifier for the creditor / debtor agent.
+---@field ultimate string? Ultimate creditor / debtor (name).
 
 ---@class YAXI.RoutexClient.Result.Transaction.BankTransactionCodes.ISO
 ---@field iso YAXI.RoutexClient.Result.Transaction.ISOCode ISO 20022 transaction code.
@@ -128,6 +130,9 @@
 ---@field balanceType YAXI.RoutexClient.Result.Balances.Payload.Entry.Type
 
 ---@alias YAXI.RoutexClient.Result.Balances.Payload.Entry.Type
+---Balance from booked transactions.
 ---|"Booked"
+---Balance from booked transactions and pending debits.
 ---|"Available"
+---Expected balance from booked and pending transactions.
 ---|"Expected"

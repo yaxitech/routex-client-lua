@@ -1,5 +1,8 @@
-local util = require("routex-client.vendor.tls13.util")
+-- SPDX-License-Identifier: MIT
+-- Author: Vincent Haupert <vincent.haupert@yaxi.tech>
+
 local random = require("routex-client.crypto.random")
+local util = require("routex-client.vendor.tls13.util")
 
 local function generateUuidV4()
   local bytes = random.urandom(16)
@@ -17,17 +20,12 @@ local function generateUuidV4()
   hex = hex:sub(1, 16) .. string.format("%02x", b9) .. hex:sub(19)
 
   -- Insert hyphens: 8-4-4-4-12
-  local uuid = string.format("%s-%s-%s-%s-%s",
-    hex:sub(1, 8),
-    hex:sub(9, 12),
-    hex:sub(13, 16),
-    hex:sub(17, 20),
-    hex:sub(21, 32)
-  )
+  local uuid =
+    string.format("%s-%s-%s-%s-%s", hex:sub(1, 8), hex:sub(9, 12), hex:sub(13, 16), hex:sub(17, 20), hex:sub(21, 32))
 
   return uuid
 end
 
 return {
-    uuid4 = generateUuidV4,
+  uuid4 = generateUuidV4,
 }
