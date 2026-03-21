@@ -7,7 +7,7 @@ local function findLoggingModule()
   local ok, logging = pcall(require, "logging")
   if not ok then
     logging = require("routex-client.vendor.logging")
-    local consoleLogger = require("routex-client.vendor.logging.console")()
+    local consoleLogger = require("routex-client.vendor.logging.console")({ destination = "stderr" })
     consoleLogger:setLevel("WARN")
     assert(logging.defaultLogger, "logging module missing defaultLogger")(consoleLogger)
   end

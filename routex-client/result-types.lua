@@ -21,6 +21,17 @@
 ---@field productName string? Product name
 ---@field status YAXI.RoutexClient.AccountStatus? Account status
 ---@field type YAXI.RoutexClient.AccountType? Account type
+---@field capabilities YAXI.RoutexClient.Result.Account.Capability[]? Account capabilities
+
+---@alias YAXI.RoutexClient.Result.Account.Capability
+---|"Balances"
+---|"Documents"
+---|"Securities"
+---|"Transactions"
+---|"SinglePayment"
+---|"BulkPayment"
+---|"StandingOrders"
+---|"ScheduledTransfers"
 
 -- YAXI TRANSACTION TYPES
 
@@ -32,7 +43,7 @@
 ---@field accountServicerReference string? Unique reference assigned by the account servicer.
 ---@field additionalInformation string? Additional information attached to the transaction. This might be a proprietary, localized, human-readable long text corresponding to some machine-readable bank transaction code that is not directly provided by the bank.
 ---@field bankTransactionCodes YAXI.RoutexClient.Result.Transaction.BankTransactionCodes[]? Bank transaction codes.
----@field batch YAXI.RoutexClient.Result.Transaction.RequestBatch? Grouped transaction info.
+---@field batch YAXI.RoutexClient.Result.Transaction.BatchData? Grouped transaction info.
 ---@field bookingDate string? Booking date (ASPSP's books), format: date.
 ---@field creditor YAXI.RoutexClient.Result.Transaction.Party? Creditor data. In case of reversals this refers to the initial transaction.
 ---@field creditorId string? SEPA creditor identifier.
@@ -70,9 +81,31 @@
 ---|YAXI.RoutexClient.Result.Transaction.BankTransactionCodes.National
 ---|YAXI.RoutexClient.Result.Transaction.BankTransactionCodes.Other
 
----@class YAXI.RoutexClient.Result.Transaction.RequestBatch
+--- Deprecated: Use `YAXI.RoutexClient.Result.Transaction.BatchData` instead.
+---@alias YAXI.RoutexClient.Result.Transaction.RequestBatch YAXI.RoutexClient.Result.Transaction.BatchData
+
+---@class YAXI.RoutexClient.Result.Transaction.BatchData
 ---@field numberOfTransactions number? Count of transactions in batch.
----@field transactions YAXI.RoutexClient.Result.Transaction[] List of transactions.
+---@field transactions YAXI.RoutexClient.Result.Transaction.BatchTransactionDetails[] Details of transactions in the batch.
+
+---@class YAXI.RoutexClient.Result.Transaction.BatchTransactionDetails
+---@field accountServicerReference string? Unique reference assigned by the account servicer.
+---@field additionalInformation string? Additional information attached to the transaction.
+---@field amount YAXI.RoutexClient.Result.Amount? Transaction amount as billed to the account.
+---@field bankTransactionCodes YAXI.RoutexClient.Result.Transaction.BankTransactionCodes[]? Bank transaction codes.
+---@field creditor YAXI.RoutexClient.Result.Transaction.Party? Creditor data. In case of reversals this refers to the initial transaction.
+---@field creditorId string? SEPA creditor identifier.
+---@field debtor YAXI.RoutexClient.Result.Transaction.Party? Debtor data. In case of reversals this refers to the initial transaction.
+---@field endToEndId string? Unique end-to-end identifier assigned by the initiating party.
+---@field exchanges YAXI.RoutexClient.Result.Transaction.ExchangeRate[]? Exchange rates if applicable.
+---@field fees YAXI.RoutexClient.Result.Transaction.Fee[]? Transaction-related fees.
+---@field mandateId string? Mandate identifier.
+---@field originalAmount YAXI.RoutexClient.Result.Amount? Original amount of the transaction.
+---@field paymentId string? Unique identifier assigned by the sending party.
+---@field purposeCode string? ISO 20022 ExternalPurpose1Code.
+---@field remittanceInformation string[]? Remittance (purpose).
+---@field reversal boolean? Indicator for reversals.
+---@field transactionId string? Unique identifier assigned by the first instructing agent.
 
 ---@class YAXI.RoutexClient.Result.Transaction.ExchangeRate
 ---@field sourceCurrency string ISO 4217 Alpha 3 currency code of the source currency that gets converted.
@@ -125,7 +158,7 @@
 ---@field balances YAXI.RoutexClient.Result.Balances.Payload.Entry[] List of balances (of different types) for the account.
 
 ---@class YAXI.RoutexClient.Result.Balances.Payload.Entry
----@field amount number Numeric amount.
+---@field amount string Numeric amount.
 ---@field currency string ISO 4217 Alpha 3 currency code.
 ---@field balanceType YAXI.RoutexClient.Result.Balances.Payload.Entry.Type
 

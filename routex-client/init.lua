@@ -50,7 +50,7 @@ local base64Decode = require("routex-client.util.base64").decode
 
 local jwt = require("routex-client.jwt")
 
-local _VERSION = "0.1.0"
+local _VERSION = "0.1.1"
 local USER_AGENT = ("RoutexClient/%s (Lua)"):format(_VERSION)
 
 -- routex expects `null` instead of omitting entries entirely
