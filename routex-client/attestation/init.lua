@@ -179,8 +179,11 @@ function RemoteAttestation:_verifyMicrocodeVersion()
 
   assert(minMicrocode ~= nil, "Report doesn't match any valid CPU family")
   assert(
-    minMicrocode <= self.report.reportedTcb.microcode,
-    ("Expected minimum microcode version of %s, got %s"):format(minMicrocode, self.report.reportedTcb.microcode)
+    minMicrocode <= self.report.committedTcb.microcode,
+    ("Expected minimum committed microcode version of %s, got %s"):format(
+      minMicrocode,
+      self.report.committedTcb.microcode
+    )
   )
 end
 

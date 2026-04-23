@@ -17,6 +17,7 @@ local routexClient = require("routex-client")
 local AccountField = routexClient.AccountField
 local AccountType = routexClient.AccountType
 local ConnectionType = routexClient.ConnectionType
+local ConnectionDetails = routexClient.ConnectionDetails
 local SupportedService = routexClient.SupportedService
 local PaymentProduct = routexClient.PaymentProduct
 -- Response types
@@ -594,8 +595,18 @@ context("RoutexClient #online", function()
             iban = "DE02120300000000202051",
           },
           balances = {
-            { amount = "8877.78", balanceType = "Booked", currency = "EUR" },
-            { amount = "8947.64", balanceType = "Available", currency = "EUR" },
+            {
+              amount = "8877.78",
+              balanceType = "Booked",
+              currency = "EUR",
+              creditLimitIncluded = false,
+            },
+            {
+              amount = "8947.64",
+              balanceType = "Available",
+              currency = "EUR",
+              creditLimitIncluded = false,
+            },
           },
         },
       },
@@ -625,9 +636,9 @@ context("RoutexClient #online", function()
 
     assert.same({
       {
-        id = "connection-6eb60518-dc4c-4d09-aa42-e38453d5c366",
+        id = "connection-3c0ec6db-f1e0-4bfb-be0b-4e5af8a7ad4e",
         countries = { "DE" },
-        displayName = "Stadtsparkasse Schwedt",
+        displayName = "Sparkasse Duderstadt",
         credentials = { full = true, userId = false, none = true },
         logoId = "sparkasse",
         userId = "Anmeldename",
@@ -643,135 +654,18 @@ context("RoutexClient #online", function()
         password = "Online-Banking-PIN",
       },
       {
-        id = "connection-8d762a37-df3d-44c3-ba0f-c928a263b360",
+        id = "connection-c5d12d75-0c31-4883-aaaa-f5535e9c82da",
         countries = { "DE" },
-        displayName = "Stadtsparkasse Cuxhaven",
+        displayName = "Stadtsparkasse Dessau",
         credentials = { full = true, userId = false, none = true },
         logoId = "sparkasse",
         userId = "Anmeldename",
         password = "Online-Banking-PIN",
       },
       {
-        id = "connection-0c02cd7e-2164-43b4-bafd-96b18251058c",
+        id = "connection-6227b304-71d9-4cab-b7c1-1bcfcc16fb23",
         countries = { "DE" },
-        displayName = "Stadtsparkasse Barsinghausen",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-3c871e2a-1e64-40c8-9648-94e9414f3f6e",
-        countries = { "DE" },
-        displayName = "Stadtsparkasse Burgdorf",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-a997832f-a868-45e5-8229-d0fb66af8e46",
-        countries = { "DE" },
-        displayName = "Stadtsparkasse Bad Pyrmont",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-3c0ec6db-f1e0-4bfb-be0b-4e5af8a7ad4e",
-        countries = { "DE" },
-        displayName = "Sparkasse Duderstadt",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-889582a7-49b7-4b04-8095-ec82d3e820aa",
-        countries = { "DE" },
-        displayName = "Stadtsparkasse Düsseldorf",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-0bfa12a2-ebf2-4adb-b8d1-735e33095022",
-        countries = { "DE" },
-        displayName = "Stadt-Sparkasse Haan (Rheinland)",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-500e6951-dcbe-45a7-b8d7-ba1a1961af1e",
-        countries = { "DE" },
-        displayName = "Stadtsparkasse Mönchengladbach",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-1d4e32aa-6d1c-4ab1-81ff-7f6d1870af4e",
-        countries = { "DE" },
-        displayName = "Stadtsparkasse Wuppertal",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-41c751be-16dd-4527-9ba8-98ccf65f1520",
-        countries = { "DE" },
-        displayName = "Stadtsparkasse Remscheid",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-95d9780e-18f7-42f0-8ad9-04d243769578",
-        countries = { "DE" },
-        displayName = "Stadtsparkasse Wermelskirchen",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-51ecdf0f-6984-4d6c-9420-ec9ba66a01c8",
-        countries = { "DE" },
-        displayName = "Stadt-Sparkasse Solingen",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-931f52d1-b108-4914-a75a-5b3d0715332f",
-        countries = { "DE" },
-        displayName = "Stadtsparkasse Oberhausen",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-24570ecb-a2c0-4e2b-9448-1a1eef9c4009",
-        countries = { "DE" },
-        displayName = "Stadt-Sparkasse Langenfeld",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
-        id = "connection-8eca5600-89aa-487b-b766-a2a8c9bf6e07",
-        countries = { "DE" },
-        displayName = "Stadtsparkasse Lengerich",
+        displayName = "Stadtsparkasse Rahden",
         credentials = { full = true, userId = false, none = true },
         logoId = "sparkasse",
         userId = "Anmeldename",
@@ -796,9 +690,126 @@ context("RoutexClient #online", function()
         password = "Online-Banking-PIN",
       },
       {
-        id = "connection-ddc4826a-2b93-4d70-92d0-0b5cf53163ab",
+        id = "connection-3c60b72f-f706-43f8-883c-1dbd1b06ac6c",
         countries = { "DE" },
-        displayName = "Sparkasse Attendorn-Lennestadt-Kirchhundem",
+        displayName = "Stadtsparkasse München",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-6eb60518-dc4c-4d09-aa42-e38453d5c366",
+        countries = { "DE" },
+        displayName = "Stadtsparkasse Schwedt",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-069d6c77-db02-4037-8ccd-7d99b1353c82",
+        countries = { "DE" },
+        displayName = "Stadtsparkasse Augsburg",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-3c871e2a-1e64-40c8-9648-94e9414f3f6e",
+        countries = { "DE" },
+        displayName = "Stadtsparkasse Burgdorf",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-8d762a37-df3d-44c3-ba0f-c928a263b360",
+        countries = { "DE" },
+        displayName = "Stadtsparkasse Cuxhaven",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-51ecdf0f-6984-4d6c-9420-ec9ba66a01c8",
+        countries = { "DE" },
+        displayName = "Stadt-Sparkasse Solingen",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-8eca5600-89aa-487b-b766-a2a8c9bf6e07",
+        countries = { "DE" },
+        displayName = "Stadtsparkasse Lengerich",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-41c751be-16dd-4527-9ba8-98ccf65f1520",
+        countries = { "DE" },
+        displayName = "Stadtsparkasse Remscheid",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-1d4e32aa-6d1c-4ab1-81ff-7f6d1870af4e",
+        countries = { "DE" },
+        displayName = "Stadtsparkasse Wuppertal",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-889582a7-49b7-4b04-8095-ec82d3e820aa",
+        countries = { "DE" },
+        displayName = "Stadtsparkasse Düsseldorf",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-931f52d1-b108-4914-a75a-5b3d0715332f",
+        countries = { "DE" },
+        displayName = "Stadtsparkasse Oberhausen",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-0ebbaba4-a62b-48fa-b18c-b1f297eb5cc7",
+        countries = { "DE" },
+        displayName = "Sparkasse Arnstadt-Ilmenau",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-24570ecb-a2c0-4e2b-9448-1a1eef9c4009",
+        countries = { "DE" },
+        displayName = "Stadt-Sparkasse Langenfeld",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-a997832f-a868-45e5-8229-d0fb66af8e46",
+        countries = { "DE" },
+        displayName = "Stadtsparkasse Bad Pyrmont",
         credentials = { full = true, userId = false, none = true },
         logoId = "sparkasse",
         userId = "Anmeldename",
@@ -821,6 +832,25 @@ context("RoutexClient #online", function()
 
     for _, info in ipairs(result) do
       assert(info.displayName == "C24 Bank")
+    end
+  end)
+
+  test("Public search with BIC details", function()
+    local result = client:search({
+      filters = {
+        {
+          types = { ConnectionType.Production },
+        },
+        {
+          name = "C24 Bank",
+        },
+      },
+      details = { ConnectionDetails.Bics },
+    })
+
+    assert(#result > 0)
+    for _, info in ipairs(result) do
+      assert.same({ "DEFFDEFFXXX" }, info.bics)
     end
   end)
 

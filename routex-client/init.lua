@@ -154,6 +154,7 @@ local SupportedService = {
 ---@field filters YAXI.RoutexClient.SearchFilter[]?
 ---@field ibanDetection boolean?
 ---@field limit integer?
+---@field details YAXI.RoutexClient.ConnectionDetails[]?
 
 ---@class YAXI.RoutexClient.InfoOptions
 ---@field ticket string
@@ -992,6 +993,7 @@ end
 ---@field password? string Human-friendly label for the PIN / password if relevant.
 ---@field advice? string Advice for the credentials to be displayed.
 ---@field logoId string Logo identifier.
+---@field bics? string[] ISO 20022 BICFIIdentifiers. Note that this is only included in search results if requested.
 
 ---Type of connections to consider when searching.
 ---@enum YAXI.RoutexClient.ConnectionType
@@ -1000,6 +1002,13 @@ local ConnectionType = {
   Production = "Production",
   --- Sandbox connections, especially test systems provided by third-parties.
   Sandboxes = "Sandboxes",
+}
+
+---Additional data to include in search results.
+---@enum YAXI.RoutexClient.ConnectionDetails
+local ConnectionDetails = {
+  --- Include BICs for each returned result.
+  Bics = "bics",
 }
 
 ---
@@ -1030,6 +1039,7 @@ function RoutexClient:search(options)
     ibanDetection = options.ibanDetection or false,
     filters = options.filters,
     limit = options.limit,
+    details = options.details,
   })
 
   local usePublicSearch = options.ticket == nil
@@ -1465,6 +1475,7 @@ return {
   AccountStatus = AccountStatus,
   AccountType = AccountType,
   ChargeBearer = ChargeBearer,
+  ConnectionDetails = ConnectionDetails,
   ConnectionType = ConnectionType,
   DialogContext = DialogContext,
   InputType = InputType,

@@ -161,6 +161,7 @@
 ---@field amount string Numeric amount.
 ---@field currency string ISO 4217 Alpha 3 currency code.
 ---@field balanceType YAXI.RoutexClient.Result.Balances.Payload.Entry.Type
+---@field creditLimitIncluded boolean?
 
 ---@alias YAXI.RoutexClient.Result.Balances.Payload.Entry.Type
 ---Balance from booked transactions.

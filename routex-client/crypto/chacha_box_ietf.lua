@@ -73,7 +73,10 @@ local function unseal(secretKey, chachaBox)
   local nonce = getSealNonce(ephemeralPublicKey, publicKey)
   local info = getInfo(ephemeralPublicKey, publicKey)
   local cipher = genCipher(ephemeralPublicKey, secretKey, info)
-  local plaintext = cipher:decrypt(ciphertext, nonce, "")
+  local plaintext, err = cipher:decrypt(ciphertext, nonce, "")
+  if plaintext == nil then
+    error("Failed to unseal chacha box: " .. (err or "unknown"))
+  end
   return plaintext
 end
 

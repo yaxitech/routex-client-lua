@@ -169,9 +169,9 @@ end
 ---@enum YAXI.RoutexClient.ServiceBlockedCode
 local ServiceBlockedCode = {
   --- Something is not set up for the user, e.g., there are no TAN methods.
-  MissingSetup = "MISSING_SETUP",
+  MissingSetup = "MissingSetup",
   --- User attention is required via another channel. Typically the user needs to log into the Online Banking.
-  ActionRequired = "ACTION_REQUIRED",
+  ActionRequired = "ActionRequired",
 }
 
 ---@class YAXI.RoutexClient.Error.ServiceBlocked: YAXI.RoutexClient.Error
@@ -188,7 +188,7 @@ function ServiceBlockedError:new(code, userMessage, options)
   ---@type YAXI.RoutexClient.Error.ServiceBlocked
   local obj = super(self).new(self, "ServiceBlockedError", message, options or {})
   setmetatable(obj, self)
-  obj.code = code
+  obj.code = ServiceBlockedCode[code] or nil
   obj.userMessage = userMessage
   return obj
 end
@@ -244,11 +244,11 @@ end
 ---@enum YAXI.RoutexClient.UnsupportedProductReason
 local UnsupportedProductReason = {
   ---The amount is not allowed for the payment product.
-  Limit = "LIMIT",
+  Limit = "Limit",
   --- The recipient is not capable to receive the payment product.
-  Recipient = "RECIPIENT",
+  Recipient = "Recipient",
   --- Scheduled payments are not supported.
-  Scheduled = "SCHEDULED",
+  Scheduled = "Scheduled",
 }
 
 ---@class YAXI.RoutexClient.Error.UnsupportedProduct: YAXI.RoutexClient.Error
@@ -266,12 +266,7 @@ function UnsupportedProductError:new(reason, userMessage, options)
   local obj = super(self).new(self, "UnsupportedProductError", message, options or {})
   setmetatable(obj, self)
 
-  local unsupportedProductReasonMap = {
-    Limit = UnsupportedProductReason.Limit,
-    Recipient = UnsupportedProductReason.Recipient,
-    Scheduled = UnsupportedProductReason.Scheduled,
-  }
-  obj.reason = unsupportedProductReasonMap[reason] or nil
+  obj.reason = UnsupportedProductReason[reason] or nil
   obj.userMessage = userMessage
 
   return obj
@@ -279,8 +274,8 @@ end
 
 ---@enum YAXI.RoutexClient.PaymentFailedCode
 local PaymentFailedCode = {
-  LimitExceeded = "LIMIT_EXCEEDED",
-  InsufficientFunds = "INSUFFICIENT_FUNDS",
+  LimitExceeded = "LimitExceeded",
+  InsufficientFunds = "InsufficientFunds",
 }
 
 ---@class YAXI.RoutexClient.Error.PaymentFailed: YAXI.RoutexClient.Error
@@ -298,11 +293,7 @@ function PaymentFailedError:new(code, userMessage, options)
   local obj = super(self).new(self, "PaymentFailedError", message, options or {})
   setmetatable(obj, self)
 
-  local paymentFailedCodeMap = {
-    LimitExceeded = PaymentFailedCode.LimitExceeded,
-    InsufficientFunds = PaymentFailedCode.InsufficientFunds,
-  }
-  obj.code = paymentFailedCodeMap[code] or nil
+  obj.code = PaymentFailedCode[code] or nil
   obj.userMessage = userMessage
 
   return obj
@@ -362,7 +353,7 @@ end
 
 ---@enum YAXI.RoutexClient.ProviderErrorCode
 local ProviderErrorCode = {
-  Maintenance = "MAINTENANCE",
+  Maintenance = "Maintenance",
 }
 
 ---@class YAXI.RoutexClient.Error.Provider: YAXI.RoutexClient.Error
@@ -381,10 +372,7 @@ function ProviderError:new(code, userMessage, options)
   local obj = super(self).new(self, "ProviderError", message, options or {})
   setmetatable(obj, self)
 
-  local providerErrorCodeMap = {
-    Maintenance = ProviderErrorCode.Maintenance,
-  }
-  obj.code = providerErrorCodeMap[code] or nil
+  obj.code = ProviderErrorCode[code] or nil
   obj.userMessage = userMessage
 
   return obj

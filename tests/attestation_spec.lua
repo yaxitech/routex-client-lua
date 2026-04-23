@@ -202,12 +202,12 @@ context("Remote attestation", function()
     test("Rejects invalid committed microcode version", function()
       local attestation = RemoteAttestationStubbed:new(vcekPem, reportBytes)
       attestation.requirements.minMicrocode = function(_, _)
-        return attestation.report.reportedTcb.microcode + 1
+        return attestation.report.committedTcb.microcode + 1
       end
 
       assert.error_match(function()
         verify(attestation)
-      end, "Expected minimum microcode version of 89, got 88", nil, true)
+      end, "Expected minimum committed microcode version of 89, got 88", nil, true)
     end)
   end)
 end)

@@ -1,5 +1,18 @@
 # Changelog
 
+### [0.1.2] - 2026-04-23
+
+#### Added
+
+- Result types: `YAXI.RoutexClient.Result.Balances.Payload.Entry`: add field `creditLimitIncluded`
+- `YAXI.RoutexClient.ConnectionInfo`: add field `bics`
+- `YAXI.RoutexClient.SearchOptions`: add optional field `details` to opt into additional data in search results
+- `YAXI.RoutexClient.ConnectionDetails` enum with variant `Bics` to have search results contain BICs
+
+#### Fixed
+
+- Error code/reason values on raised errors now match the wire format
+
 ### [0.1.1] - 2026-03-20
 
 #### Added
