@@ -199,6 +199,42 @@ context("Remote attestation", function()
       end, "Report is missing values for determining CPU type", nil, true)
     end)
 
+    test("Rejects missing currentMitVector", function()
+      local attestation = RemoteAttestationStubbed:new(vcekPem, reportBytes)
+      attestation.report.currentMitVector = nil
+
+      assert.error_match(function()
+        verify(attestation)
+      end, "Current mitigation vector not present in report", nil, true)
+    end)
+
+    test("Rejects missing launchMitVector", function()
+      local attestation = RemoteAttestationStubbed:new(vcekPem, reportBytes)
+      attestation.report.launchMitVector = nil
+
+      assert.error_match(function()
+        verify(attestation)
+      end, "Launch mitigation vector not present in report", nil, true)
+    end)
+
+    test("Rejects insufficient currentMitVector", function()
+      local attestation = RemoteAttestationStubbed:new(vcekPem, reportBytes)
+      attestation.report.currentMitVector = 0
+
+      assert.error_match(function()
+        verify(attestation)
+      end, "Expected current mitigation vector to include all bits in 0x3, got 0x0", nil, true)
+    end)
+
+    test("Rejects insufficient launchMitVector", function()
+      local attestation = RemoteAttestationStubbed:new(vcekPem, reportBytes)
+      attestation.report.launchMitVector = 0
+
+      assert.error_match(function()
+        verify(attestation)
+      end, "Expected launch mitigation vector to include all bits in 0x3, got 0x0", nil, true)
+    end)
+
     test("Rejects invalid committed microcode version", function()
       local attestation = RemoteAttestationStubbed:new(vcekPem, reportBytes)
       attestation.requirements.minMicrocode = function(_, _)

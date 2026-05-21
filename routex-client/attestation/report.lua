@@ -174,34 +174,22 @@ local function readU64Le(b, o, field)
   return v --[[@as integer]]
 end
 
-local function parseTcbVersion(bytes, offset, productName, field)
+local function parseTcbVersion(bytes, offset, turinLike, field)
   local raw8 = readBytes(bytes, offset, 8, field)
   ---@diagnostic disable: undefined-field
   local b = { raw8:byte(1, 8) }
   local t = {}
   t.microcode = b[8]
-  if productName == "Genoa" or productName == "Milan" then
-    t.snp = b[7]
-    t.tee = b[2]
-    t.bootloader = b[1]
-    t.fmc = nil
-  elseif productName == "Turin" then
-    t.snp = b[4]
-    t.tee = b[3]
-    t.bootloader = b[2]
+  if turinLike then
     t.fmc = b[1]
+    t.bootloader = b[2]
+    t.tee = b[3]
+    t.snp = b[4]
   else
-    if b[7] ~= 0 then
-      t.snp = b[7]
-      t.tee = b[2]
-      t.bootloader = b[1]
-      t.fmc = nil
-    else
-      t.snp = b[4]
-      t.tee = b[3]
-      t.bootloader = b[2]
-      t.fmc = b[1]
-    end
+    t.fmc = nil
+    t.bootloader = b[1]
+    t.tee = b[2]
+    t.snp = b[7]
   end
   ---@diagnostic enable: undefined-field
   return t
@@ -295,23 +283,41 @@ local function parseSignature(bytes, sigAlgo)
   return "" -- unreachable
 end
 
+---Decide the TCB_VERSION layout from the report bytes alone (CPU_FAM_ID for
+---v>=3, CHIP_ID heuristic for v<3). Milan/Genoa (family 0x19) use the legacy
+---layout; anything else falls back to the Turin layout.
 ---@param bytes binary
----@param productName "Milan"|"Genoa"|"Turin"
----@return YAXI.Attestation.Report?,string?
-function AttestationReport:new(bytes, productName)
+---@param version integer
+---@return boolean
+local function determineTurinLike(bytes, version)
+  if version >= 3 then
+    return readU8(bytes, off(Offsets.v3.cpuidFamId), "CPUID_FAM_ID") ~= 0x19
+  end
+  local chipId = readBytes(bytes, off(Offsets.base.chipId), 64, "CHIP_ID")
+  if chipId == ("\x00"):rep(64) then
+    error("Cannot determine TCB_VERSION layout: CHIP_ID is masked in a pre-V3 report")
+  end
+  -- Turin populates only the first 8 bytes of CHIP_ID; legacy chips fill all 64.
+  return chipId:sub(9) == ("\x00"):rep(56)
+end
+
+---@param bytes binary
+---@return YAXI.Attestation.Report
+function AttestationReport:new(bytes)
   if #bytes ~= ReportLen then
     error(("Expected exactly %s bytes, got: %s bytes"):format(ReportLen, #bytes))
   end
   local o = setmetatable({}, self)
   o._signaturePayload = readBytes(bytes, off(Offsets.base.version), Offsets.base.signature, "_signaturePayload")
   o.version = readU32Le(bytes, off(Offsets.base.version), "VERSION")
+  local turinLike = determineTurinLike(bytes, o.version)
   o.guestSvn = readU32Le(bytes, off(Offsets.base.guestSvn), "GUEST_SVN")
   o.policy = parseGuestPolicy(bytes)
   o.familyId = readBytes(bytes, off(Offsets.base.familyId), 16, "FAMILY_ID")
   o.imageId = readBytes(bytes, off(Offsets.base.imageId), 16, "IMAGE_ID")
   o.vmpl = readU32Le(bytes, off(Offsets.base.vmpl), "VMPL")
   o.sigAlgo = readU32Le(bytes, off(Offsets.base.sigAlgo), "SIGNATURE_ALGORITHM")
-  o.currentTcb = parseTcbVersion(bytes, off(Offsets.base.currentTcb), productName, "CURRENT_TCB")
+  o.currentTcb = parseTcbVersion(bytes, off(Offsets.base.currentTcb), turinLike, "CURRENT_TCB")
   o.platInfo = parsePlatformInfo(bytes)
   o.keyInfo = parseKeyInfo(bytes)
   o.reportData = readBytes(bytes, off(Offsets.base.reportData), 64, "REPORT_DATA")
@@ -321,14 +327,14 @@ function AttestationReport:new(bytes, productName)
   o.authorKeyDigest = readBytes(bytes, off(Offsets.base.authorKeyDigest), 48, "AUTHOR_KEY_DIGEST")
   o.reportId = readBytes(bytes, off(Offsets.base.reportId), 32, "REPORT_ID")
   o.reportIdMa = readBytes(bytes, off(Offsets.base.reportIdMa), 32, "REPORT_ID_MA")
-  o.reportedTcb = parseTcbVersion(bytes, off(Offsets.base.reportedTcb), productName, "REPORTED_TCB")
+  o.reportedTcb = parseTcbVersion(bytes, off(Offsets.base.reportedTcb), turinLike, "REPORTED_TCB")
   if o.version >= 3 then
     o.cpuidFamId = readU8(bytes, off(Offsets.v3.cpuidFamId), "CPUID_FAM_ID")
     o.cpuidModId = readU8(bytes, off(Offsets.v3.cpuidModId), "CPUID_MOD_ID")
     o.cpuidStep = readU8(bytes, off(Offsets.v3.cpuidStep), "CPUID_STEP")
   end
   o.chipId = readBytes(bytes, off(Offsets.base.chipId), 64, "CHIP_ID")
-  o.committedTcb = parseTcbVersion(bytes, off(Offsets.base.committedTcb), productName, "COMMITTED_TCB")
+  o.committedTcb = parseTcbVersion(bytes, off(Offsets.base.committedTcb), turinLike, "COMMITTED_TCB")
   o.current = parseVersion(
     readU8(bytes, off(Offsets.base.current_build), "CURRENT_BUILD"),
     readU8(bytes, off(Offsets.base.current_minor), "CURRENT_MINOR"),
@@ -339,7 +345,7 @@ function AttestationReport:new(bytes, productName)
     readU8(bytes, off(Offsets.base.committed_minor), "COMMITTED_MINOR"),
     readU8(bytes, off(Offsets.base.committed_major), "COMMITTED_MAJOR")
   )
-  o.launchTcb = parseTcbVersion(bytes, off(Offsets.base.launchTcb), productName, "LAUNCH_TCB")
+  o.launchTcb = parseTcbVersion(bytes, off(Offsets.base.launchTcb), turinLike, "LAUNCH_TCB")
   if o.version >= 5 then
     o.launchMitVector = readU64Le(bytes, off(Offsets.v5.launchMitVector), "LAUNCH_MIT_VECTOR")
     o.currentMitVector = readU64Le(bytes, off(Offsets.v5.currentMitVector), "CURRENT_MIT_VECTOR")

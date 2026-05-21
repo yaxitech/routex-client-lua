@@ -207,7 +207,7 @@ context("RoutexClient #online", function()
     result = response --[[@as YAXI.RoutexClient.Result]]
 
     jwtPayload = jwtDecodeUnverified(result.jwt)
-    assert.same(jwtPayload.data.data, {}, "Expected no Result data")
+    assert.same(jwtPayload.data.data, { status = "Accepted" }, "Expected no Result data")
   end)
 
   test("Service CollectPayment with debtor identification", function()
@@ -242,6 +242,7 @@ context("RoutexClient #online", function()
     assert.same({
       debtorName = "Dr. Peter Steiger",
       debtorIban = "DE02120300000000202051",
+      status = "Accepted",
     }, jwtPayload.data.data, "Expected debtor name and IBAN in Result data")
   end)
 
@@ -296,6 +297,7 @@ context("RoutexClient #online", function()
     assert.same({
       debtorName = "Dr. Peter Steiger",
       debtorIban = "DE02120300000000202051",
+      status = "Accepted",
     }, jwtPayload.data.data, "Expected debtor name and IBAN in Result data")
   end)
 
@@ -544,7 +546,7 @@ context("RoutexClient #online", function()
 
     local jwtPayload = jwtDecodeUnverified(result.jwt)
     assert.equal(jwtPayload.data.ticketId, ticket.getId(transferTicket))
-    assert.same(jwtPayload.data.data, {}, "Expected no Result data")
+    assert.same(jwtPayload.data.data, { status = "Accepted" }, "Expected no Result data")
   end)
 
   test("Service Balances", function()
@@ -717,15 +719,6 @@ context("RoutexClient #online", function()
         password = "Online-Banking-PIN",
       },
       {
-        id = "connection-3c871e2a-1e64-40c8-9648-94e9414f3f6e",
-        countries = { "DE" },
-        displayName = "Stadtsparkasse Burgdorf",
-        credentials = { full = true, userId = false, none = true },
-        logoId = "sparkasse",
-        userId = "Anmeldename",
-        password = "Online-Banking-PIN",
-      },
-      {
         id = "connection-8d762a37-df3d-44c3-ba0f-c928a263b360",
         countries = { "DE" },
         displayName = "Stadtsparkasse Cuxhaven",
@@ -810,6 +803,15 @@ context("RoutexClient #online", function()
         id = "connection-a997832f-a868-45e5-8229-d0fb66af8e46",
         countries = { "DE" },
         displayName = "Stadtsparkasse Bad Pyrmont",
+        credentials = { full = true, userId = false, none = true },
+        logoId = "sparkasse",
+        userId = "Anmeldename",
+        password = "Online-Banking-PIN",
+      },
+      {
+        id = "connection-7a30cb24-fbc6-44ad-a031-c00a1c248094",
+        countries = { "DE" },
+        displayName = "Stadtsparkasse Grebenstein",
         credentials = { full = true, userId = false, none = true },
         logoId = "sparkasse",
         userId = "Anmeldename",
@@ -941,33 +943,19 @@ context("RoutexClient #online", function()
     ---@param url string
     ---@return string
     local function handleRedirect(url)
-      local redirectBaseUrl = "https://redirect.yaxi.tech"
-      if url:find(redirectBaseUrl) == 1 then
-        local redirectQuery = url:sub(#redirectBaseUrl + 1 + 2) -- also skip the '/?'
-        local request = Request:builder("https://remux.yaxi.tech/redirect"):method("POST"):data(redirectQuery):build()
-        local response, request = httpClient:request(request)
-        local res = response.body
-        if response.status ~= 200 or res == nil or res == "" then
-          error(
-            string.format("Expected response status 200 with a body\nRequest:\n%s\nResponse:\n%s", request, response)
+      local response, request = httpClient:request(Request:builder(url):method("GET"):followRedirects(false):build())
+      local res = response.headers["location"]
+      if response.status ~= 303 or not res then
+        error(
+          string.format(
+            "Expected response status 303, got %s.\nRequest:\n%s\nResponse:\n%s",
+            response.status,
+            request,
+            response
           )
-        end
-        return res
-      else
-        local response, request = httpClient:request(Request:builder(url):method("GET"):followRedirects(false):build())
-        local res = response.headers["location"]
-        if response.status ~= 303 or not res then
-          error(
-            string.format(
-              "Expected response status 303, got %s.\nRequest:\n%s\nResponse:\n%s",
-              response.status,
-              request,
-              response
-            )
-          )
-        end
-        return res
+        )
       end
+      return res
     end
 
     test("RedirectHandle", function()

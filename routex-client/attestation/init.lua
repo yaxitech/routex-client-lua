@@ -12,6 +12,7 @@ local SigningKey = require("routex-client.attestation.report").SigningKey
 ---@class YAXI.Attestation.RemoteAttestation.Requirements
 ---@field minCommittedVersion YAXI.Attestation.Report.Version
 ---@field minCommittedTcbSnp integer
+---@field minMitVector integer?
 ---@field minMicrocode fun(model: integer, stepping: integer): integer?
 
 ---@type table<YAXI.Attestation.Vcek.VcekGeneration, YAXI.Attestation.RemoteAttestation.Requirements>
@@ -19,11 +20,12 @@ local REQUIREMENTS = {
   [VcekGeneration.Milan] = {
     minCommittedVersion = { major = 0x1, minor = 0x37, build = 0x23 },
     minCommittedTcbSnp = 0x1B,
+    minMitVector = 1 << 1,
     minMicrocode = function(model, stepping)
       if model == 1 and stepping == 1 then -- Milan
         return 0xDE
       elseif model == 1 and stepping == 2 then -- Milan-X
-        return 0x45
+        return 0x47
       end
       return nil
     end,
@@ -31,6 +33,7 @@ local REQUIREMENTS = {
   [VcekGeneration.Genoa] = {
     minCommittedVersion = { major = 0x1, minor = 0x37, build = 0x31 },
     minCommittedTcbSnp = 0x1B,
+    minMitVector = (1 << 0) | (1 << 1),
     minMicrocode = function(model, stepping)
       if model == 0x11 then
         ---@diagnostic disable-next-line: invert-if
@@ -48,13 +51,12 @@ local REQUIREMENTS = {
   [VcekGeneration.Turin] = {
     minCommittedVersion = { major = 0x1, minor = 0x37, build = 0x41 },
     minCommittedTcbSnp = 0x04,
+    minMitVector = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 4) | (1 << 5),
     minMicrocode = function(model, stepping)
       if model == 2 and stepping == 1 then -- Turin Classic
-        return 0x50
+        return 0x51
       elseif model == 0x11 and stepping == 0 then -- Turin Dense
-        return 0x4D
-      elseif model > 2 or (model == 2 and stepping > 1) or (model == 0x11 and stepping > 0) then -- Accept any newer models/steppings for Turin
-        return 0
+        return 0x4E
       end
       return nil
     end,
@@ -74,12 +76,7 @@ local RemoteAttestation = util.class()
 function RemoteAttestation:new(vcek, report)
   local obj = setmetatable({}, self)
   obj.vcek = Vcek:new(vcek)
-  ---@diagnostic disable-next-line undefined-field
-  local attestationReport, err = AttestationReport:new(report, obj.vcek.vcekGeneration)
-  if not attestationReport then
-    error(("Failed to parse attestation report: %s"):format(err))
-  end
-  obj.report = attestationReport --[[@as YAXI.Attestation.Report]]
+  obj.report = AttestationReport:new(report)
   obj.requirements = REQUIREMENTS[obj.vcek.vcekGeneration] ---@diagnostic disable-line: undefined-field
     or error(("Failed to find requirements for %s"):format(self.vcek.vcekGeneration))
   obj:verify()
@@ -169,6 +166,24 @@ function RemoteAttestation:_verifySigningKey()
   )
 end
 
+function RemoteAttestation:_verifyMitVectors()
+  local min = self.requirements.minMitVector
+  if min == nil then
+    return
+  end
+
+  local check = function(value, label)
+    assert(value ~= nil, ("%s mitigation vector not present in report"):format(label))
+    assert(
+      value & min == min,
+      ("Expected %s mitigation vector to include all bits in 0x%x, got 0x%x"):format(label:lower(), min, value)
+    )
+  end
+
+  check(self.report.currentMitVector, "Current")
+  check(self.report.launchMitVector, "Launch")
+end
+
 function RemoteAttestation:_verifyMicrocodeVersion()
   assert(
     self.report.cpuidModId ~= nil and self.report.cpuidStep ~= nil,
@@ -212,6 +227,8 @@ function RemoteAttestation:verify()
   self:_verifyVmpl()
   -- Signing key
   self:_verifySigningKey()
+
+  self:_verifyMitVectors()
 
   self:_verifyMicrocodeVersion()
 

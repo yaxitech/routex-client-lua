@@ -1,5 +1,11 @@
 # Changelog
 
+### [0.1.3] - 2026-05-19
+
+#### Changed
+
+- Hardened attestation verification
+
 ### [0.1.2] - 2026-04-23
 
 #### Added
