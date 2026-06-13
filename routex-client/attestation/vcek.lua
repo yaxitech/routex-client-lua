@@ -408,10 +408,12 @@ function Vcek:verify()
   local _, askDer, arkDer = table.unpack(self:getCertificateChain())
   local sevVcek, ask, ark = self, x509.Certificate:new(askDer), x509.Certificate:new(arkDer)
 
-  -- Verify chain
+  -- Verify chain signatures up to the trusted anchor; each link also checks
+  -- the subject's validity window. The anchor (ARK) is accepted as
+  -- configured: its own validity and CA flags are never re-derived from its
+  -- bytes, only its path length is honored below.
   sevVcek._super.verify(self, ask)
   ask:verify(ark)
-  ark:verify(ark)
   log:debug("[%s] Verified full certificate chain", self.commonName)
 
   -- Verify name
@@ -419,9 +421,24 @@ function Vcek:verify()
     error(("Expected common name SEV-VCEK, got: %s"):format(sevVcek.commonName))
   end
 
-  -- Verify SEV-VCEK
+  -- The leaf (VCEK) is an end-entity and must not be a CA
   if sevVcek.isCa then
     error("SEV-VCEK shouldn't be a CA")
+  end
+
+  -- The intermediate signs the leaf, so it must be a CA permitted to sign
+  -- certificates
+  if not ask.isCa then
+    error(("Intermediate %s is not a CA"):format(ask.commonName))
+  end
+  if not ask.keyCertSign then
+    error(("Intermediate %s may not sign certificates"):format(ask.commonName))
+  end
+
+  -- Path length: the ARK must permit one intermediate CA (the ASK) beneath
+  -- it; the ASK has no CA beneath it, so any of its path lengths is honored
+  if ark.pathLen and ark.pathLen < 1 then
+    error(("Path length constraint exceeded at %s"):format(ark.commonName))
   end
 end
 

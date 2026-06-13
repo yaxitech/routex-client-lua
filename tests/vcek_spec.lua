@@ -49,3 +49,31 @@ context("VCEK parsing", function()
     end, "Failed to verify certificate SEV-VCEK with issuer SEV-Genoa: invalid signature", nil, true)
   end)
 end)
+
+-- The pinned AMD ASK/ARK are real CA certificates; the constraint accessors
+-- must read their Basic Constraints and Key Usage faithfully. This pins the
+-- parsing the chain validator relies on.
+context("VCEK chain constraint accessors", function()
+  local x509 = require("routex-client.attestation.x509")
+
+  test("AMD chain constraints parse", function()
+    local pem = io.open("tests/data/vcek-chain-milan.pem", "r"):read("a")
+    local sevVcek = Vcek:new(pem)
+    local _, askDer, arkDer = table.unpack(sevVcek:getCertificateChain())
+    local ask, ark = x509.Certificate:new(askDer), x509.Certificate:new(arkDer)
+
+    -- The leaf is an end-entity with no Key Usage restriction
+    assert.is_false(sevVcek.isCa)
+    assert.is_nil(sevVcek.pathLen)
+
+    -- The ASK is a CA limited to leaf issuance
+    assert.is_true(ask.isCa)
+    assert.is_true(ask.keyCertSign)
+    assert.same(0, ask.pathLen)
+
+    -- The ARK is a CA with no path length limit
+    assert.is_true(ark.isCa)
+    assert.is_true(ark.keyCertSign)
+    assert.is_nil(ark.pathLen)
+  end)
+end)

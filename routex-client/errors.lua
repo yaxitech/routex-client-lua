@@ -209,22 +209,6 @@ function UnauthorizedError:new(userMessage, options)
   return obj
 end
 
----@class YAXI.RoutexClient.Error.ConsentExpired: YAXI.RoutexClient.Error
----@field userMessage string? Description or advice to the user how to deal with the error
-local ConsentExpiredError = class(Error)
-
----@param userMessage string?
----@param options YAXI.RoutexClient.Error.Options?
----@return YAXI.RoutexClient.Error.ConsentExpired
-function ConsentExpiredError:new(userMessage, options)
-  local message = "Consent expired" .. (userMessage and string.format(": %s", userMessage) or "")
-  ---@type YAXI.RoutexClient.Error.ConsentExpired
-  local obj = super(self).new(self, "ConsentExpiredError", message, options or {})
-  setmetatable(obj, self)
-  obj.userMessage = userMessage
-  return obj
-end
-
 ---@class YAXI.RoutexClient.Error.PeriodOutOfBounds: YAXI.RoutexClient.Error
 ---@field userMessage string? Description or advice to the user how to deal with the error
 local PeriodOutOfBoundsError = class(Error)
@@ -378,6 +362,24 @@ function ProviderError:new(code, userMessage, options)
   return obj
 end
 
+---An interactive step (e.g. SCA) is required to complete the request.
+---
+---Only non-interactive services raise this error; interactive services return a
+---[`Dialog`](lua://YAXI.RoutexClient.Dialog), [`Redirect`](lua://YAXI.RoutexClient.Redirect)
+---or [`RedirectHandle`](lua://YAXI.RoutexClient.RedirectHandle) instead.
+---Recover by running the user through a fresh interactive flow and persisting the new connection data.
+---@class YAXI.RoutexClient.Error.Interrupt: YAXI.RoutexClient.Error
+local InterruptError = class(Error)
+
+---@param options YAXI.RoutexClient.Error.Options?
+---@return YAXI.RoutexClient.Error.Interrupt
+function InterruptError:new(options)
+  ---@type YAXI.RoutexClient.Error.Interrupt
+  local obj = super(self).new(self, "InterruptError", "An interactive step is required", options or {})
+  setmetatable(obj, self)
+  return obj
+end
+
 ---@class YAXI.RoutexClient.Error.NotFound: YAXI.RoutexClient.Error
 local NotFoundError = class(Error)
 
@@ -437,7 +439,7 @@ return {
   -- RoutexClient Error classes
   AccessExceededError = AccessExceededError,
   CanceledError = CanceledError,
-  ConsentExpiredError = ConsentExpiredError,
+  InterruptError = InterruptError,
   InvalidCredentialsError = InvalidCredentialsError,
   InvalidRedirectUriError = InvalidRedirectUriError,
   NotFoundError = NotFoundError,

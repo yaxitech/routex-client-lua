@@ -37,6 +37,10 @@ test("propsToMsg", function()
       wurzel = "\x04\x01\x03\x03\x07",
     })
   )
+
+  -- The brace styles cycle from the fourth level on
+  assert.same("a: (b: [c: {1: x, 2: y}])", util.propsToMsg({ a = { b = { c = { "x", "y" } } } }))
+  assert.same("a: (b: [c: {d: (1: x, 2: y)}])", util.propsToMsg({ a = { b = { c = { d = { "x", "y" } } } } }))
 end)
 
 test("sortKeyValueTable", function()

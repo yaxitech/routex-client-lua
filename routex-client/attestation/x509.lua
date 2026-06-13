@@ -114,7 +114,6 @@ local function publicKeyFromSubjectPublicKeyInfo(spki)
   else
     error(("Unsupported subjectPublicKeyInfo algorithm: %s"):format(spki.algorithm.algorithm))
   end
-  assert(algo)
 
   local pk, err = algo:decodePublicKey(spki)
   if pk == nil then
@@ -134,6 +133,8 @@ end
 ---@field notBefore integer Not before validity timestamp
 ---@field notAfter integer Not after validity timestamp
 ---@field isCa boolean Whether this is a certificate authority
+---@field pathLen integer? Basic Constraints path length constraint (nil when unconstrained or absent)
+---@field keyCertSign boolean Whether Key Usage permits certificate signing (true when the extension is absent)
 ---@field verifiedAt integer?
 ---@field protected _der binary DER-encoded input X.509 certificate
 ---@field protected _inner table tls13 X.509 certificate
@@ -156,6 +157,9 @@ function Certificate:new(pemOrDer)
   obj.notAfter = os.time(obj._inner.tbsCertificate.validity.notAfter)
   local basicConstraints = obj:getExtensionValue(oid.ce.basicConstraints)
   obj.isCa = basicConstraints and basicConstraints.cA == true or false
+  obj.pathLen = basicConstraints and basicConstraints.pathLenConstraint or nil
+  local keyUsage = obj:getExtensionValue(oid.ce.keyUsage)
+  obj.keyCertSign = keyUsage == nil or keyUsage.keyCertSign == true
   return obj
 end
 

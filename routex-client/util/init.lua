@@ -149,8 +149,12 @@ local function sortKeyValueTable(tbl)
   return indexedTable
 end
 
+---Render a (nested) table as a single-line message string
+---@param tbl table
+---@param level integer? Nesting level; defaults to 1
+---@return string
 local function propsToMsg(tbl, level)
-  level = level or 1
+  level = level or 1 --[[@as integer]]
   local elems = {}
   local leaf = false
 
@@ -197,7 +201,8 @@ local function propsToMsg(tbl, level)
     if level == 1 then
       brace = { "", "" }
     else
-      brace = braces[(level - 1) % #braces] ---@diagnostic disable-line: undefined-field
+      -- Cycle through the brace styles, starting with the second level
+      brace = assert(braces[(level - 2) % #braces + 1])
     end
     return ("%s%s%s"):format(brace[1], table.concat(elems, ", "), brace[2])
   end

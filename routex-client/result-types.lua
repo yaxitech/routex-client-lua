@@ -164,9 +164,6 @@
 ---@field creditLimitIncluded boolean?
 
 ---@alias YAXI.RoutexClient.Result.Balances.Payload.Entry.Type
----Balance from booked transactions.
----|"Booked"
----Balance from booked transactions and pending debits.
----|"Available"
----Expected balance from booked and pending transactions.
----|"Expected"
+---|"Booked" # Balance from booked transactions.
+---|"Available" # Balance from booked transactions and pending debits.
+---|"Expected" # Expected balance from booked and pending transactions.
