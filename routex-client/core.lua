@@ -43,7 +43,7 @@ local UnexpectedError = errors.UnexpectedError
 local UnexpectedValueError = errors.UnexpectedValueError
 local UnsupportedProductError = errors.UnsupportedProductError
 
-local _VERSION = "0.2.0"
+local _VERSION = "0.3.0"
 local USER_AGENT = ("RoutexClient/%s (Lua)"):format(_VERSION)
 
 -- routex expects `null` instead of omitting entries entirely

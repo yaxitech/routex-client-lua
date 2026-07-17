@@ -138,6 +138,13 @@ context("RoutexRefreshClient #online", function()
         { iban = "NL58YAXI1234567890", currency = "EUR" },
       },
     })
+    for _, account in ipairs(balancesResponse.result.balances) do
+      for _, balance in ipairs(account.balances) do
+        assert.is_not_nil(balance.dateTime)
+        balance.dateTime = nil
+      end
+    end
+
     assert.same({
       balances = {
         {

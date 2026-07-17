@@ -88,7 +88,8 @@ local _VERSION = core._VERSION
 ---@field filter YAXI.RoutexClient.AccountFilter?
 
 ---@class YAXI.RoutexClient.AccountReference
----@field iban string
+---@field iban string? ISO 20022 IBAN2007Identifier.
+---@field number string? Account number that is not an IBAN, e.g. ISO 20022 BBANIdentifier.
 ---@field currency string?
 
 ---@class YAXI.RoutexClient.BalancesOptions: YAXI.RoutexClient.ServiceOptions
@@ -159,7 +160,7 @@ local ChargeBearer = {
 
 ---@class YAXI.RoutexClient.TransferOptions: YAXI.RoutexClient.ServiceOptions
 ---@field product YAXI.RoutexClient.PaymentProduct
----@field debtorAccount YAXI.RoutexClient.AccountReference?
+---@field debtorAccount YAXI.RoutexClient.DebtorAccountReferencePlain?
 ---@field debtorName string?
 ---@field requestedExecutionDate osdate? %Y-%m-%dT%H:%M:%S%.f
 ---@field details YAXI.RoutexClient.TransferOptions.Details[]

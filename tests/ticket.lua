@@ -145,6 +145,8 @@ end
 ---@alias YAXI.Ticket.Payload.CollectPayment.Field
 ---| "debtorIban"
 ---| "debtorName"
+---| "encryptedDebtorIban"
+---| "encryptedDebtorName"
 
 ---Issue a ticket for the collect payment service
 ---@param ticketId string A UUIDv4 in its string representation; generates an ID if not given

@@ -162,8 +162,9 @@
 ---@field currency string ISO 4217 Alpha 3 currency code.
 ---@field balanceType YAXI.RoutexClient.Result.Balances.Payload.Entry.Type
 ---@field creditLimitIncluded boolean?
+---@field dateTime string? The moment the balance is valid, as an ISO 8601 date-time.
 
 ---@alias YAXI.RoutexClient.Result.Balances.Payload.Entry.Type
 ---|"Booked" # Balance from booked transactions.
----|"Available" # Balance from booked transactions and pending debits.
+---|"Available" # Available balance from booked transactions. Depending on the bank, a credit line may or may not be included (see creditLimitIncluded). For the most current balance without credit, prefer Booked and judge recency by dateTime.
 ---|"Expected" # Expected balance from booked and pending transactions.

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0] - 2026-07-16
+
+### Added
+
+- `AccountReference` accepts a non-IBAN `number` (e.g. an ISO 20022 BBAN) in addition to `iban`, for the balances and transactions services
+- Result types: `YAXI.RoutexClient.Result.Balances.Payload.Entry`: add field `dateTime`, the moment a balance is valid (ISO 8601 date-time)
+- `RoutexRefreshClient:setUserInSession(...)` with `UserInSession.OnThisConnection` / `UserInSession.At(ipAddress)` to signal an in-session user.
+
 ## [0.2.0] - 2026-06-14
 
 ### Added

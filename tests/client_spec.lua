@@ -246,59 +246,109 @@ context("RoutexClient #online", function()
     }, jwtPayload.data.data, "Expected debtor name and IBAN in Result data")
   end)
 
-  test("Service CollectPayment with encrypted IBAN", function()
-    local encrypt = function(plaintext, secret)
-      local HKDF = require("routex-client.crypto.hkdf").HKDF
-      local Blake2b512 = require("routex-client.crypto.blake2b_512")
-      local hmac = require("routex-client.vendor.tls13.crypto.hmac")
-      local ChaCha20Poly1305 = require("routex-client.vendor.tls13.crypto.cipher.chacha20-poly1305").chacha20Poly1305
+  context("CollectPayment with encryption", function()
+    local HKDF = require("routex-client.crypto.hkdf").HKDF
+    local Blake2b512 = require("routex-client.crypto.blake2b_512")
+    local hmac = require("routex-client.vendor.tls13.crypto.hmac")
+    local ChaCha20Poly1305 = require("routex-client.vendor.tls13.crypto.cipher.chacha20-poly1305").chacha20Poly1305
+    local hmacBlake2b512 = hmac.hmac(Blake2b512)
 
-      local hmacBlake2b512 = hmac.hmac(Blake2b512)
-      local hkdf_blake2b = HKDF:new(hmacBlake2b512, 32, "", "on-file-data")
-      local shared_key = hkdf_blake2b:derive(secret)
-      local cipher = ChaCha20Poly1305(shared_key)
-      local nonce = random.urandom(12)
-      local ciphertext = cipher:encrypt(plaintext, nonce, "")
-
-      return nonce .. ciphertext
+    ---@param info string HKDF info binding the derived key to a purpose
+    ---@param secret binary Raw API key secret
+    local function cipher(info, secret)
+      local sharedKey = HKDF:new(hmacBlake2b512, 32, "", info):derive(secret)
+      return ChaCha20Poly1305(sharedKey)
     end
 
-    local paymentTicket = ticketGenerator:collectPayment(uuid.uuid4(), {
-      amount = {
-        amount = "100",
-        currency = "EUR",
-      },
-      creditorAccount = {
-        iban = "DE79430609671288143100",
-      },
-      creditorName = "YAXI GmbH",
-      remittance = "Sign-up fee routex 123456789",
-      fields = { "debtorIban", "debtorName" },
-    })
+    ---Encrypts on-file data (e.g., a debtor IBAN) for use as an opaque account reference.
+    ---@param plaintext binary Data to encrypt
+    ---@param secret binary Raw API key secret
+    ---@return binary @Nonce-prefixed ciphertext
+    local function encrypt(plaintext, secret)
+      local nonce = random.urandom(12)
+      return nonce .. cipher("on-file-data", secret):encrypt(plaintext, nonce, "")
+    end
 
-    local debtorIbanEncrypted = base64.encode(encrypt("DE02120300000000202051", apiKeySecret))
+    ---Decrypts the ciphertext returned for the `encrypted*` result fields.
+    ---@param data binary Nonce-prefixed ciphertext
+    ---@param secret binary Raw API key secret
+    ---@return binary? @Decrypted plaintext, or `nil` if authentication fails
+    local function decrypt(data, secret)
+      local nonce = data:sub(1, 12)
+      return (cipher("result-data", secret):decrypt(data:sub(13), nonce, ""))
+    end
 
-    local response = client:collectPayment({
-      credentials = {
-        connectionId = YAXI_DEMO_CONNECTION_ID,
-        userId = "result",
-      },
-      ticket = paymentTicket,
-      account = {
-        encryptedIban = debtorIbanEncrypted,
-        currency = "EUR",
-      },
-    })
+    test("Service CollectPayment with encrypted IBAN", function()
+      local paymentTicket = ticketGenerator:collectPayment(uuid.uuid4(), {
+        amount = {
+          amount = "100",
+          currency = "EUR",
+        },
+        creditorAccount = {
+          iban = "DE79430609671288143100",
+        },
+        creditorName = "YAXI GmbH",
+        remittance = "Sign-up fee routex 123456789",
+        fields = { "debtorIban", "debtorName" },
+      })
 
-    assert(response:isInstanceOf(Result), "Expected a Result")
-    local result = response --[[@as YAXI.RoutexClient.Result]]
+      local debtorIbanEncrypted = base64.encode(encrypt("DE02120300000000202051", apiKeySecret))
 
-    local jwtPayload = jwtDecodeUnverified(result.jwt)
-    assert.same({
-      debtorName = "Dr. Peter Steiger",
-      debtorIban = "DE02120300000000202051",
-      status = "Accepted",
-    }, jwtPayload.data.data, "Expected debtor name and IBAN in Result data")
+      local response = client:collectPayment({
+        credentials = {
+          connectionId = YAXI_DEMO_CONNECTION_ID,
+          userId = "result",
+        },
+        ticket = paymentTicket,
+        account = {
+          encryptedIban = debtorIbanEncrypted,
+          currency = "EUR",
+        },
+      })
+
+      assert(response:isInstanceOf(Result), "Expected a Result")
+      local result = response --[[@as YAXI.RoutexClient.Result]]
+
+      local jwtPayload = jwtDecodeUnverified(result.jwt)
+      assert.same({
+        debtorName = "Dr. Peter Steiger",
+        debtorIban = "DE02120300000000202051",
+        status = "Accepted",
+      }, jwtPayload.data.data, "Expected debtor name and IBAN in Result data")
+    end)
+
+    test("Service CollectPayment with encrypted debtor fields", function()
+      local paymentTicket = ticketGenerator:collectPayment(uuid.uuid4(), {
+        amount = {
+          amount = "100",
+          currency = "EUR",
+        },
+        creditorAccount = {
+          iban = "DE79430609671288143100",
+        },
+        creditorName = "YAXI GmbH",
+        remittance = "Sign-up fee routex 123456789",
+        fields = { "encryptedDebtorIban", "encryptedDebtorName" },
+      })
+
+      local response = client:collectPayment({
+        credentials = {
+          connectionId = YAXI_DEMO_CONNECTION_ID,
+          userId = "result",
+        },
+        ticket = paymentTicket,
+        account = {
+          iban = "DE02120300000000202051",
+        },
+      })
+
+      assert(response:isInstanceOf(Result), "Expected a Result")
+      local result = response --[[@as YAXI.RoutexClient.Result]]
+
+      local data = jwtDecodeUnverified(result.jwt).data.data
+      assert.equals("DE02120300000000202051", decrypt(base64.decode(data.encryptedDebtorIban), apiKeySecret))
+      assert.equals("Dr. Peter Steiger", decrypt(base64.decode(data.encryptedDebtorName), apiKeySecret))
+    end)
   end)
 
   context("AccountFilter", function()
@@ -589,6 +639,13 @@ context("RoutexClient #online", function()
       jwtPayload.data.ticketId == ticket.getId(balancesTicket),
       "Expected ID of result JWT to be equal to the balances ticket ID"
     )
+    for _, account in ipairs(jwtPayload.data.data.balances) do
+      for _, balance in ipairs(account.balances) do
+        assert.is_not_nil(balance.dateTime)
+        balance.dateTime = nil
+      end
+    end
+
     assert.same({
       balances = {
         {

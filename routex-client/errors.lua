@@ -150,6 +150,11 @@ function InvalidCredentialsError:new(userMessage, options)
   return obj
 end
 
+---The bank rejected the request for exceeding the consent's permitted access frequency.
+---
+---This most commonly arises on the non-interactive refresh service, where a caller
+---exceeds the bank's limit on requests made without a user in session. Set a
+---[`UserInSession`](lua://YAXI.RoutexRefreshClient.UserInSession) to lift that limit.
 ---@class YAXI.RoutexClient.Error.AccessExceeded: YAXI.RoutexClient.Error
 ---@field userMessage string? Description or advice to the user how to deal with the error
 local AccessExceededError = class(Error)

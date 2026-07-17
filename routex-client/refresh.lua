@@ -53,6 +53,33 @@ local base64Decode = require("routex-client.util.base64").decode
 
 --#endregion Responses
 
+--#region UserInSession
+
+---Indicates that a user is in session for a non-interactive service call.
+---
+---When a user is in session, YAXI forwards the user's IP address to their bank. That
+---address is either this connection's own source IP (`UserInSession.OnThisConnection`)
+---or an IP address the caller provides (`UserInSession.At`).
+---
+---Without a user in session, banks limit how many requests a caller may make and reject
+---excess requests with an [`AccessExceeded`](lua://YAXI.RoutexClient.Error.AccessExceeded)
+---error. A user in session lifts that limit.
+---@alias YAXI.RoutexRefreshClient.UserInSession string
+
+local UserInSession = {
+  ---The user's IP is this connection's own source IP.
+  OnThisConnection = "connection",
+}
+
+---The user is at the given IP address.
+---@param ipAddress string
+---@return YAXI.RoutexRefreshClient.UserInSession
+function UserInSession.At(ipAddress)
+  return ipAddress
+end
+
+--#endregion UserInSession
+
 --#region RoutexRefreshClient
 
 ---
@@ -71,6 +98,7 @@ local base64Decode = require("routex-client.util.base64").decode
 ---    interactive and live on [`RoutexClient`](lua://YAXI.RoutexClient.RoutexClient).
 ---
 ---@class YAXI.RoutexRefreshClient: YAXI.RoutexClient.Core
+---@field private _userInSession YAXI.RoutexRefreshClient.UserInSession?
 local RoutexRefreshClient = class(Core)
 
 ---Create a new instance.
@@ -82,12 +110,21 @@ function RoutexRefreshClient:new(url, httpClient)
   return obj
 end
 
+---Indicates a user is in session for every service call this client makes, lifting the
+---bank's limit on requests without one (see
+---[`UserInSession`](lua://YAXI.RoutexRefreshClient.UserInSession)). Unset by default.
+---@param userInSession YAXI.RoutexRefreshClient.UserInSession
+function RoutexRefreshClient:setUserInSession(userInSession)
+  self._userInSession = userInSession
+end
+
 ---Prepare the body of a non-interactive request.
 ---@private
 ---@param options YAXI.RoutexRefreshClient.ServiceOptions
+---@param userInSession YAXI.RoutexRefreshClient.UserInSession? in-session user to forward
 ---@param data table<string, any> Service-specific request data
 ---@return table<string, any>
-function RoutexRefreshClient._prepareData(options, data)
+function RoutexRefreshClient._prepareData(options, userInSession, data)
   local connectionData = options.connectionData or error(UnexpectedError:new("Missing `connectionData`"))
 
   local res = {
@@ -95,6 +132,7 @@ function RoutexRefreshClient._prepareData(options, data)
       or error(UnexpectedError:new("Could not Base64-encode connection data")),
     session = options.session
       and (base64Encode(options.session) or error(UnexpectedError:new("Could not Base64-encode session"))),
+    userInSession = userInSession,
   }
 
   for k, v in pairs(data) do
@@ -126,7 +164,7 @@ end
 ---@param options YAXI.RoutexRefreshClient.AccountsOptions
 ---@return YAXI.RoutexRefreshClient.AccountsResponse
 function RoutexRefreshClient:accounts(options)
-  local data = self._prepareData(options, {
+  local data = self._prepareData(options, self._userInSession, {
     fields = options.fields or {},
     filter = options.filter and self:_mapFilter(options.filter) or nil,
   })
@@ -139,7 +177,7 @@ end
 ---@param options YAXI.RoutexRefreshClient.BalancesOptions
 ---@return YAXI.RoutexRefreshClient.BalancesResponse
 function RoutexRefreshClient:balances(options)
-  local data = self._prepareData(options, {
+  local data = self._prepareData(options, self._userInSession, {
     accounts = options.accounts,
   })
   local response = self:_request(options.ticket, "balances/non-interactive", data)
@@ -151,7 +189,7 @@ end
 ---@param options YAXI.RoutexRefreshClient.TransactionsOptions
 ---@return YAXI.RoutexRefreshClient.TransactionsResponse
 function RoutexRefreshClient:transactions(options)
-  local data = self._prepareData(options, {})
+  local data = self._prepareData(options, self._userInSession, {})
   local response = self:_request(options.ticket, "transactions/non-interactive", data)
   return self._readResponse(response) --[[@as YAXI.RoutexRefreshClient.TransactionsResponse]]
 end
@@ -160,6 +198,7 @@ end
 
 return {
   RoutexRefreshClient = RoutexRefreshClient,
+  UserInSession = UserInSession,
 
   -- Shared enums, re-exported for convenience
   AccountField = core.AccountField,
