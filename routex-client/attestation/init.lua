@@ -154,6 +154,10 @@ function RemoteAttestation:_verifyDebugDisabled()
   assert(self.report.policy.debugAllowed == false, "Debug mode is enabled in guest policy")
 end
 
+function RemoteAttestation:_verifyMigrationAgentDisabled()
+  assert(self.report.policy.migrateMaAllowed == false, "Guest policy allows a migration agent")
+end
+
 function RemoteAttestation:_verifyVmpl()
   local maxVmpl = 3
   assert(self.report.vmpl <= maxVmpl, ("Expected VMPL <= %s, got %s"):format(maxVmpl, self.report.vmpl))
@@ -223,6 +227,8 @@ function RemoteAttestation:verify()
   self:_verifyAliasCheckComplete()
   -- Debug mode disabled
   self:_verifyDebugDisabled()
+  -- Migration agent disabled
+  self:_verifyMigrationAgentDisabled()
   -- VMPL
   self:_verifyVmpl()
   -- Signing key

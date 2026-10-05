@@ -986,6 +986,68 @@ context("RoutexClient #online", function()
     }, jwtPayload.data.data[1])
   end)
 
+  test("Service StandingOrders", function()
+    local standingOrdersTicket = ticketGenerator:standingOrders(uuid.uuid4(), {
+      account = {
+        iban = "DE02120300000000202051",
+        currency = "EUR",
+      },
+    })
+
+    local response = client:standingOrders({
+      credentials = {
+        connectionId = YAXI_DEMO_CONNECTION_ID,
+        userId = "result",
+      },
+      ticket = standingOrdersTicket,
+    })
+
+    assert(response:isInstanceOf(Result), "Expected a Result")
+    local result = response --[[@as YAXI.RoutexClient.Result]]
+
+    local jwtPayload = jwtDecodeUnverified(result.jwt)
+    assert(
+      jwtPayload.data.ticketId == ticket.getId(standingOrdersTicket),
+      "Expected ID of result JWT to be equal to the standingOrdersTicket ticket ID"
+    )
+    ---@type YAXI.RoutexClient.Result.StandingOrder[]
+    local standingOrders = jwtPayload.data.data
+    assert.same(2, #standingOrders)
+
+    local rent, broadcasting = standingOrders[1], standingOrders[2]
+    assert.same("2023-02-01", rent.startDate)
+    assert.same({ months = 1 }, rent.frequency)
+    assert.same("Following", rent.executionRule)
+    assert.same(1, rent.day)
+    assert.same({ amount = "1000", currency = "EUR" }, rent.amount)
+    assert.same("DE89370400440532013000", rent.creditor.iban)
+
+    assert.same({ variableMonths = { 1, 4, 7, 10 } }, broadcasting.frequency)
+    assert.same({ amount = "55.08", currency = "EUR" }, broadcasting.amount)
+  end)
+
+  test("Service StandingOrders for an unknown account", function()
+    local standingOrdersTicket = ticketGenerator:standingOrders(uuid.uuid4(), {
+      account = {
+        iban = "NL31YAXI1234567891",
+        currency = "EUR",
+      },
+    })
+
+    local ok, err = pcall(function()
+      return client:standingOrders({
+        credentials = {
+          connectionId = YAXI_DEMO_CONNECTION_ID,
+          userId = "result",
+        },
+        ticket = standingOrdersTicket,
+      })
+    end)
+
+    assert.is_false(ok)
+    assert.is_true(err:isInstanceOf(NotFoundError))
+  end)
+
   context("Redirect dialogs", function()
     ---@diagnostic disable-next-line: invisible
     local httpClient = client._httpClient
@@ -1101,6 +1163,31 @@ context("RoutexClient #online", function()
       assert(ticketError.name == "TicketError")
       assert(ticketError.message == "Ticket is expired")
       assert(ticketError.code == TicketErrorCode.Expired)
+    end)
+
+    test("Error unknown API key", function()
+      -- Issue a ticket signed with a valid secret but an unknown key ID
+      local config = helpers.getConfig()
+      local unknownKeyGenerator = ticket.Generator:new("api-key-949daeb8-728f-480e-bf66-a0f0c374b2c7", config.key)
+      local accountsTicket = unknownKeyGenerator:accounts(uuid.uuid4())
+
+      ---@type boolean, YAXI.RoutexClient.OBResponse?
+      local ok, response = pcall(function()
+        client:info({
+          ticket = accountsTicket,
+          connectionId = YAXI_DEMO_CONNECTION_ID,
+        })
+      end)
+
+      assert(not ok, "Expected an unsuccessful client:info() call")
+      assert(response, "Expected an error object")
+      assert(response:isInstanceOf(Error))
+      assert(response:isInstanceOf(TicketError))
+
+      local ticketError = response --[[@as YAXI.RoutexClient.Error.Ticket]]
+      assert(ticketError.name == "TicketError")
+      assert(ticketError.code == TicketErrorCode.UnknownKey)
+      assert(ticketError.message:find("Unknown key", 1, true), "Expected an 'Unknown key' message")
     end)
   end)
 

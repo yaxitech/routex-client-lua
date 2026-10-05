@@ -369,10 +369,11 @@ end
 
 ---An interactive step (e.g. SCA) is required to complete the request.
 ---
----Only non-interactive services raise this error; interactive services return a
----[`Dialog`](lua://YAXI.RoutexClient.Dialog), [`Redirect`](lua://YAXI.RoutexClient.Redirect)
----or [`RedirectHandle`](lua://YAXI.RoutexClient.RedirectHandle) instead.
----Recover by running the user through a fresh interactive flow and persisting the new connection data.
+---Only requests passing a `connectionData` instead of `credentials` raise this error,
+---be it through a non-interactive service or through an interactive one; with
+---`credentials` a [`Dialog`](lua://YAXI.RoutexClient.Dialog), [`Redirect`](lua://YAXI.RoutexClient.Redirect)
+---or [`RedirectHandle`](lua://YAXI.RoutexClient.RedirectHandle) gets returned instead.
+---Recover by running the user through a request with `credentials` and persisting the `connectionData` it returns.
 ---@class YAXI.RoutexClient.Error.Interrupt: YAXI.RoutexClient.Error
 local InterruptError = class(Error)
 

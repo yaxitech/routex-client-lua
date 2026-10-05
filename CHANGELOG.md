@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0] - 2026-10-05
+
+### Added
+
+- `ConnectionInfo.labels`
+- `connectionData` option for `accounts`, `balances` and `transactions`, so a service can be run with the `connectionData` of an earlier `Result` instead of `credentials`; such a request raises `InterruptError` if it cannot complete without user interaction.
+- `standingOrders`, `respondStandingOrders` and `confirmStandingOrders`
+
+### Security
+
+- Reject attestation reports whose guest policy allows migration to another host.
+
 ## [0.3.0] - 2026-07-16
 
 ### Added

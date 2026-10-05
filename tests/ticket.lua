@@ -35,7 +35,7 @@ end
 
 ---Issue a new YAXI service ticket
 ---@param ticketId string A UUIDv4 in its string representation
----@param service "Accounts"|"CollectPayment"|"Balances"|"Transactions"|string YAXI service for which you want to issue the ticket
+---@param service "Accounts"|"CollectPayment"|"Balances"|"Transactions"|"StandingOrders"|string YAXI service for which you want to issue the ticket
 ---@param data table? Additional data specific to the `service`
 ---@param exp integer? Expiration date as a POSIX timestamp; defaults to now + 5min
 ---@return string @YAXI ticket JWT
@@ -113,6 +113,24 @@ end
 
 --#endregion Issue Transactions ticket
 
+--#region Issue StandingOrders ticket
+
+---@alias YAXI.Ticket.Payload.StandingOrders.Account YAXI.Ticket.Payload.Transactions.Account
+
+---@class YAXI.Ticket.Payload.StandingOrders
+---@field account YAXI.Ticket.Payload.StandingOrders.Account Account to gather standing orders for. This could be provided by the user, known from a different source or from a different service like the Accounts service.
+
+---Issue a ticket for the standing orders service
+---@param ticketId string A UUIDv4 in its string representation; generates an ID if not given
+---@param data YAXI.Ticket.Payload.StandingOrders
+---@param exp integer? Expiration date as a POSIX timestamp; defaults to now + 5min
+---@return string @YAXI ticket JWT
+function Generator:standingOrders(ticketId, data, exp)
+  return self:issue(ticketId, "StandingOrders", data, exp)
+end
+
+--#endregion Issue StandingOrders ticket
+
 --#region Issue CollectPayment ticket
 
 --- Restrictions on remittance and creditor name:
@@ -163,7 +181,7 @@ end
 ---@param apiKeyId string YAXI key ID
 ---@param apiKeySecret binary Raw API key secret
 ---@param ticketId string A UUIDv4 in its string representation
----@param service "Accounts"|"CollectPayment"|"Balances"|"Transactions"|string YAXI service for which you want to issue the ticket
+---@param service "Accounts"|"CollectPayment"|"Balances"|"Transactions"|"StandingOrders"|string YAXI service for which you want to issue the ticket
 ---@param data table? Additional data specific to the `service`
 ---@param exp integer? Expiration date as a POSIX timestamp; defaults to now + 5min
 ---@return string @YAXI ticket JWT

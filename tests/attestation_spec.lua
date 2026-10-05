@@ -173,6 +173,14 @@ context("Remote attestation", function()
       end, "Debug mode is enabled in guest policy", nil, true)
     end)
 
+    test("Rejects guest policy allowing a migration agent", function()
+      local attestation = RemoteAttestationStubbed:new(vcekPem, reportBytes)
+      attestation.report.policy.migrateMaAllowed = true
+      assert.error_match(function()
+        verify(attestation)
+      end, "Guest policy allows a migration agent", nil, true)
+    end)
+
     test("Rejects non-guest VMPL", function()
       local attestation = RemoteAttestationStubbed:new(vcekPem, reportBytes)
       attestation.report.vmpl = 4

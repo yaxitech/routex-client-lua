@@ -78,12 +78,18 @@ local _VERSION = core._VERSION
 ---@field connectionData binary?
 
 ---@class YAXI.RoutexClient.ServiceOptions
----@field credentials YAXI.RoutexClient.Credentials
 ---@field ticket string
 ---@field recurringConsents boolean? Defaults to false
 ---@field session binary?
 
----@class YAXI.RoutexClient.AccountsOptions: YAXI.RoutexClient.ServiceOptions
+---@class YAXI.RoutexClient.CredentialsOptions: YAXI.RoutexClient.ServiceOptions
+---@field credentials YAXI.RoutexClient.Credentials
+
+---@class YAXI.RoutexClient.AccessOptions: YAXI.RoutexClient.ServiceOptions
+---@field credentials YAXI.RoutexClient.Credentials?
+---@field connectionData binary?
+
+---@class YAXI.RoutexClient.AccountsOptions: YAXI.RoutexClient.AccessOptions
 ---@field fields YAXI.RoutexClient.AccountField[]?
 ---@field filter YAXI.RoutexClient.AccountFilter?
 
@@ -92,10 +98,12 @@ local _VERSION = core._VERSION
 ---@field number string? Account number that is not an IBAN, e.g. ISO 20022 BBANIdentifier.
 ---@field currency string?
 
----@class YAXI.RoutexClient.BalancesOptions: YAXI.RoutexClient.ServiceOptions
+---@class YAXI.RoutexClient.BalancesOptions: YAXI.RoutexClient.AccessOptions
 ---@field accounts YAXI.RoutexClient.AccountReference[]
 
----@alias YAXI.RoutexClient.TransactionsOptions YAXI.RoutexClient.ServiceOptions
+---@alias YAXI.RoutexClient.TransactionsOptions YAXI.RoutexClient.AccessOptions
+
+---@alias YAXI.RoutexClient.StandingOrdersOptions YAXI.RoutexClient.AccessOptions
 
 ---@class YAXI.RoutexClient.DebtorAccountReferenceEncrypted
 ---@field encryptedIban string
@@ -107,7 +115,7 @@ local _VERSION = core._VERSION
 
 ---@alias YAXI.RoutexClient.DebtorAccountReference YAXI.RoutexClient.DebtorAccountReferencePlain | YAXI.RoutexClient.DebtorAccountReferenceEncrypted
 
----@class YAXI.RoutexClient.CollectPaymentOptions: YAXI.RoutexClient.ServiceOptions
+---@class YAXI.RoutexClient.CollectPaymentOptions: YAXI.RoutexClient.CredentialsOptions
 ---@field account YAXI.RoutexClient.DebtorAccountReference
 
 ---@enum YAXI.RoutexClient.PaymentProduct
@@ -158,7 +166,7 @@ local ChargeBearer = {
 ---@field remittance string?
 ---@field chargeBearer YAXI.RoutexClient.ChargeBearer?
 
----@class YAXI.RoutexClient.TransferOptions: YAXI.RoutexClient.ServiceOptions
+---@class YAXI.RoutexClient.TransferOptions: YAXI.RoutexClient.CredentialsOptions
 ---@field product YAXI.RoutexClient.PaymentProduct
 ---@field debtorAccount YAXI.RoutexClient.DebtorAccountReferencePlain?
 ---@field debtorName string?
@@ -244,10 +252,11 @@ function RoutexClient:accounts(options)
     table.insert(fields, field)
   end
 
-  local data = self._prepareData(options.credentials, options.session, options.recurringConsents, {
-    fields = fields,
-    filter = options.filter and self:_mapFilter(options.filter) or nil,
-  })
+  local data =
+    self._prepareAccessData(options.credentials, options.connectionData, options.session, options.recurringConsents, {
+      fields = fields,
+      filter = options.filter and self:_mapFilter(options.filter) or nil,
+    })
 
   local response = self:_request(options.ticket, "accounts/service", data)
 
@@ -276,9 +285,10 @@ end
 ---@param options YAXI.RoutexClient.BalancesOptions
 ---@return YAXI.RoutexClient.OBResponse
 function RoutexClient:balances(options)
-  local data = self._prepareData(options.credentials, options.session, options.recurringConsents, {
-    accounts = options.accounts,
-  })
+  local data =
+    self._prepareAccessData(options.credentials, options.connectionData, options.session, options.recurringConsents, {
+      accounts = options.accounts,
+    })
   local response = self:_request(options.ticket, "balances/service", data)
   return RoutexClient._readOBResponse(response)
 end
@@ -305,7 +315,8 @@ end
 ---@param options YAXI.RoutexClient.TransactionsOptions
 ---@return YAXI.RoutexClient.OBResponse
 function RoutexClient:transactions(options)
-  local data = self._prepareData(options.credentials, options.session, options.recurringConsents, {})
+  local data =
+    self._prepareAccessData(options.credentials, options.connectionData, options.session, options.recurringConsents, {})
   local response = self:_request(options.ticket, "transactions/service", data)
   return RoutexClient._readOBResponse(response)
 end
@@ -325,6 +336,34 @@ function RoutexClient:confirmTransactions(options)
 end
 
 --#endregion RoutexClient:transactions()
+
+--#region RoutexClient:standingOrders()
+
+---[Standing Orders service](https://docs.yaxi.tech/standing-orders.html)
+---@param options YAXI.RoutexClient.StandingOrdersOptions
+---@return YAXI.RoutexClient.OBResponse
+function RoutexClient:standingOrders(options)
+  local data =
+    self._prepareAccessData(options.credentials, options.connectionData, options.session, options.recurringConsents, {})
+  local response = self:_request(options.ticket, "standing-orders/service", data)
+  return RoutexClient._readOBResponse(response)
+end
+
+---Respond to a [`Dialog`](lua://YAXI.RoutexClient.Dialog) returned while fetching standing orders
+---@param options YAXI.RoutexClient.ResponseOptions
+---@return YAXI.RoutexClient.OBResponse
+function RoutexClient:respondStandingOrders(options)
+  return self:_respond("standing-orders", options)
+end
+
+---Confirm a [`Dialog`](lua://YAXI.RoutexClient.Dialog) or [Redirect](lua://YAXI.RoutexClient.Redirect) returned while fetching standing orders
+---@param options YAXI.RoutexClient.ConfirmationOptions
+---@return YAXI.RoutexClient.OBResponse
+function RoutexClient:confirmStandingOrders(options)
+  return self:_confirm("standing-orders", options)
+end
+
+--#endregion RoutexClient:standingOrders()
 
 --#region RoutexClient:collectPayment()
 
@@ -426,9 +465,10 @@ end
 --#region Private helpers
 
 ---@class YAXI.RoutexClient.PreparedData
----@field credentials YAXI.RoutexClient.Credentials
+---@field credentials YAXI.RoutexClient.Credentials?
+---@field connectionData string?
 ---@field session binary?
----@field recurringConsents boolean
+---@field recurringConsents boolean?
 
 ---@private
 ---@param credentials YAXI.RoutexClient.Credentials
@@ -447,6 +487,41 @@ function RoutexClient._prepareData(credentials, session, recurringConsents, data
     },
     session = session and base64Encode(session) or NULL_MARKER,
     recurringConsents = recurringConsents or false,
+  }
+
+  if data then
+    for k, v in pairs(data) do
+      res[k] = v
+    end
+  end
+
+  return res
+end
+
+---@private
+---@param credentials YAXI.RoutexClient.Credentials?
+---@param connectionData binary?
+---@param session binary?
+---@param recurringConsents boolean?
+---@param data table<string, any>?
+---@return YAXI.RoutexClient.PreparedData
+function RoutexClient._prepareAccessData(credentials, connectionData, session, recurringConsents, data)
+  if credentials then
+    if connectionData then
+      error("`credentials` and `connectionData` are mutually exclusive")
+    end
+
+    return RoutexClient._prepareData(credentials, session, recurringConsents, data)
+  end
+
+  if not connectionData then
+    error("Either `credentials` or `connectionData` must be given")
+  end
+
+  ---@type YAXI.RoutexClient.PreparedData
+  local res = {
+    connectionData = base64Encode(connectionData),
+    session = session and base64Encode(session) or NULL_MARKER,
   }
 
   if data then

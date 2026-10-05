@@ -147,6 +147,59 @@
 ---@field code string Code.
 ---@field issuer string? Code issuer.
 
+-- YAXI STANDING ORDER TYPES
+
+---@class YAXI.RoutexClient.Result.StandingOrder
+---Required
+---@field startDate string Date of the first execution, format: date.
+---@field amount YAXI.RoutexClient.Result.Amount Amount of each execution.
+---Optional
+---@field endDate string? Date of the last execution, format: date.
+---@field executionRule YAXI.RoutexClient.Result.StandingOrder.ExecutionRule? Rule to follow if the execution falls on a weekend or bank holiday.
+---@field frequency YAXI.RoutexClient.Result.StandingOrder.Frequency?
+---@field day number? Day of month on which the order shall get executed.
+---@field skimmingLimit YAXI.RoutexClient.Result.Amount? Amount limit for fund skimming, i.e. funds exceeding this value get transferred instead of a fixed amount.
+---@field endToEndId string? Unique end-to-end identifier assigned by the initiating party.
+---@field creditor YAXI.RoutexClient.Result.Transaction.Party? Creditor data.
+---@field debtor YAXI.RoutexClient.Result.Transaction.Party? Debtor data.
+---@field remittanceInformation string[]? Remittance (purpose).
+---@field purposeCode string? ISO 20022 ExternalPurpose1Code.
+---@field additionalInformation string? Additional information attached to the standing order.
+
+---@alias YAXI.RoutexClient.Result.StandingOrder.ExecutionRule
+---|"Following" # Following working day.
+---|"FollowingWithinAMonth" # Following working day unless it would fall into the next month.
+---|"Preceding" # Preceding working day.
+---|"PrecedingWithinAMonth" # Preceding working day unless it would fall into the previous month.
+
+---@alias YAXI.RoutexClient.Result.StandingOrder.Frequency
+---|YAXI.RoutexClient.Result.StandingOrder.Frequency.Days
+---|YAXI.RoutexClient.Result.StandingOrder.Frequency.Months
+---|YAXI.RoutexClient.Result.StandingOrder.Frequency.VariableMonths
+
+---@class YAXI.RoutexClient.Result.StandingOrder.Frequency.Days
+---@field days number Frequency in days.
+
+---@class YAXI.RoutexClient.Result.StandingOrder.Frequency.Months
+---@field months number Frequency in months.
+
+---@class YAXI.RoutexClient.Result.StandingOrder.Frequency.VariableMonths
+---@field variableMonths YAXI.RoutexClient.Result.StandingOrder.Month[] Specific months that the standing order is scheduled for.
+
+---@alias YAXI.RoutexClient.Result.StandingOrder.Month
+---|1 # January
+---|2 # February
+---|3 # March
+---|4 # April
+---|5 # May
+---|6 # June
+---|7 # July
+---|8 # August
+---|9 # September
+---|10 # October
+---|11 # November
+---|12 # December
+
 --- YAXI BALANCES TYPES
 
 ---@class YAXI.RoutexClient.Result.Balances

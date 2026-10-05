@@ -43,7 +43,7 @@ local UnexpectedError = errors.UnexpectedError
 local UnexpectedValueError = errors.UnexpectedValueError
 local UnsupportedProductError = errors.UnsupportedProductError
 
-local _VERSION = "0.3.0"
+local _VERSION = "0.4.0"
 local USER_AGENT = ("RoutexClient/%s (Lua)"):format(_VERSION)
 
 -- routex expects `null` instead of omitting entries entirely
@@ -209,6 +209,7 @@ local ConnectionDetails = {
 ---@field logoId string Logo identifier.
 ---@field bics? string[] ISO 20022 BICFIIdentifiers. Note that this is only included in search results if requested.
 ---@field bankCodes? string[] National bank codes (as used in IBANs). Note that this is only included in search results if requested.
+---@field labels? string[] Labels categorizing the connection (e.g. "beta", "fints").
 
 ---
 --- Filters for the connection lookup
