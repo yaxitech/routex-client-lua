@@ -96,6 +96,7 @@ local _VERSION = core._VERSION
 ---@class YAXI.RoutexClient.AccountReference
 ---@field iban string? ISO 20022 IBAN2007Identifier.
 ---@field number string? Account number that is not an IBAN, e.g. ISO 20022 BBANIdentifier.
+---@field maskedPan string? Masked payment card number.
 ---@field currency string?
 
 ---@class YAXI.RoutexClient.BalancesOptions: YAXI.RoutexClient.AccessOptions
@@ -103,7 +104,7 @@ local _VERSION = core._VERSION
 
 ---@alias YAXI.RoutexClient.TransactionsOptions YAXI.RoutexClient.AccessOptions
 
----@alias YAXI.RoutexClient.StandingOrdersOptions YAXI.RoutexClient.AccessOptions
+---@alias YAXI.RoutexClient.StandingOrdersOptions YAXI.RoutexClient.CredentialsOptions
 
 ---@class YAXI.RoutexClient.DebtorAccountReferenceEncrypted
 ---@field encryptedIban string
@@ -343,8 +344,11 @@ end
 ---@param options YAXI.RoutexClient.StandingOrdersOptions
 ---@return YAXI.RoutexClient.OBResponse
 function RoutexClient:standingOrders(options)
-  local data =
-    self._prepareAccessData(options.credentials, options.connectionData, options.session, options.recurringConsents, {})
+  if not options.credentials then
+    error("`credentials` must be given")
+  end
+
+  local data = self._prepareData(options.credentials, options.session, options.recurringConsents, {})
   local response = self:_request(options.ticket, "standing-orders/service", data)
   return RoutexClient._readOBResponse(response)
 end

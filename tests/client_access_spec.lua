@@ -22,12 +22,9 @@ context("RoutexClient access", function()
     transactions = function(options)
       return client:transactions(options)
     end,
-    standingOrders = function(options)
-      return client:standingOrders(options)
-    end,
   }
 
-  for _, service in ipairs({ "accounts", "balances", "transactions", "standingOrders" }) do
+  for _, service in ipairs({ "accounts", "balances", "transactions" }) do
     local call = services[service]
 
     test(service .. " rejects credentials together with connection data", function()

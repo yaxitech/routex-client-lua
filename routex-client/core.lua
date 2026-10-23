@@ -43,7 +43,7 @@ local UnexpectedError = errors.UnexpectedError
 local UnexpectedValueError = errors.UnexpectedValueError
 local UnsupportedProductError = errors.UnsupportedProductError
 
-local _VERSION = "0.4.0"
+local _VERSION = "0.5.0"
 local USER_AGENT = ("RoutexClient/%s (Lua)"):format(_VERSION)
 
 -- routex expects `null` instead of omitting entries entirely
@@ -58,6 +58,7 @@ local NULL_MARKER = "____NULL_MARKER____"
 local AccountField = {
   Iban = "Iban",
   Number = "Number",
+  MaskedPan = "MaskedPan",
   Bic = "Bic",
   BankCode = "BankCode",
   Currency = "Currency",

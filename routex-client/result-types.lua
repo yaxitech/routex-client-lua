@@ -11,7 +11,8 @@
 
 ---@class YAXI.RoutexClient.Result.Account
 ---@field iban string? ISO 20022 IBAN2007Identifier
----@field number string? Account number that is not an IBAN, e.g. ISO 20022 BBANIdentifier or primary account number (PAN) of a card account
+---@field number string? Account number that is not an IBAN, e.g. ISO 20022 BBANIdentifier
+---@field maskedPan string? Masked payment card number
 ---@field bic string? ISO 20022 BICFIIdentifier
 ---@field bankCode string? National bank code
 ---@field currency string? ISO 4217 Alpha 3 currency code

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0] - 2026-10-23
+
+### Added
+
+- `AccountReference` accepts a `maskedPan` to reference a card account for the balances and transactions services
+- `AccountField.MaskedPan` and result type field `YAXI.RoutexClient.Result.Account.maskedPan`, the masked payment card number
+
+### Changed
+
+- **Breaking:** `standingOrders` requires `credentials` and no longer accepts `connectionData`
+
 ## [0.4.0] - 2026-10-05
 
 ### Added
